@@ -1,0 +1,7 @@
+target
+src/discovery_data/
+src/caches/
+src/scripts/models
+searchinterface/node_modules
+src/indices/
+

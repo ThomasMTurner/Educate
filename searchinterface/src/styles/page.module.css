@@ -1,0 +1,9 @@
+.main {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    transform: translateX(40%);
+    justify-content: center;
+    align-items: center;
+}
+
