@@ -94,10 +94,10 @@
     
 
     fn make_embedding (term: String) -> Option<Result<Vec<f32>, serde_json::Error>> {
-        
+       println!("Attempting to embed the term: {}", term);
         // Obtain script output from scripts / embedding.py - returns term vector as a
         // JSON-encoded array.
-        let script = "Modules/scripts/embedding.py";
+        let script = "./scripts/embedding.py";
 
         let embedding_output = Command::new("python3")
             .arg(script)
@@ -105,6 +105,8 @@
             .output()
             .expect("Failed to make embedding");
 
+
+        println!("Should have generated embedding output here.");
         println!("Obtained the following embedding output {:?}", embedding_output);
                 
         // Obtain JSON string from the script output.
@@ -196,7 +198,8 @@
                 }
             })
             .collect();
-
+            
+            println!("Obtained {} feature vectors for this document.", feature_vectors.len());
             features.insert(document, feature_vectors);
 
             // Push the averaged feature vector for this document.
@@ -235,7 +238,7 @@
         // Also need the centroid for each cluster.
         // I.e. [[([embeddings], centroid)]]
         
-        let script = "Modules/scripts/cluster.py";    
+        let script = "./scripts/cluster.py";    
 
         let clusters_output = Command::new("python3")
             .arg(script)
@@ -302,7 +305,6 @@
     }
     
     fn reduce_query (query: Vec<f32>, embeddings: Vec<EmbeddedDocument>, centroid_len: usize) -> Vec<f32> {
-        let mut embeddings = embeddings;
         let embeddings: Vec<Vec<f32>> = embeddings.par_iter().map(|doc| doc.embedding.clone()).collect();
 
         // Generate the dataset from the input embedding vectors.
@@ -334,23 +336,32 @@
                 panic!("Index type not supported.");
             }
         }
+
+        println!("Collected terms from the index - now embedding documents.");
+        for terms in document_terms.values() {
+            for term in terms {
+                println!("Term obtained: {}", term);
+            }
+        }
         
         // Embed documents
         let embeddings = embed_documents(document_terms);
         let mut clusters: Vec<Cluster> = vec![];
 
+        println!("Successfully embedded documents");
 
         match generate_clusters(embeddings.clone()) {
             Ok(clusters_out) => clusters = clusters_out,
             Err(_) => {}
         }
+
+        println!("Generated clusters");
          
         // Embed the query for similarity comparison with cluster centroids.
         // Split the query into multiple terms - then normalise these outputs and average them.
         let query_terms = query.split_whitespace().collect::<Vec<&str>>();
         let mut query_embeddings = vec![];
         
-        println!("Obtaining the query embeddings: ");
         for term in &query_terms {
             match make_embedding(term.to_string()) {
                 Some(result) => {
@@ -364,7 +375,8 @@
         }
 
 
-        let mut query_embedding = get_average_vector(query_embeddings); 
+        let mut query_embedding = get_average_vector(query_embeddings);
+        println!("Obtained query embedding {:?}", query_embedding);
 
         let centroid_len = clusters[0].centroid.len();
         let query_len = query_embedding.len();
@@ -388,13 +400,15 @@
         for doc in &min.unwrap().documents {
             ranked_docs.push(doc.document.clone());
         }
+
+        println!("Obtained ranked documents.");
         
         for (i, doc) in ranked_docs.clone().into_iter().enumerate() {
             for text in doc.content {
                 println!("{}. {}: {}", i + 1, doc.title, text);
             }
         }
-
+        
         Ok(ranked_docs)
 
     }

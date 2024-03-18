@@ -5,7 +5,6 @@ use rocket::serde::json::Json;
 use rocket::{get, post, options, launch};
 use crate::services::{fill_indices, get_search_results};
 use crate::parser::Document;
-use tokio::runtime::Runtime;
 
 // Corrected OPTIONS handler
 #[options("/<_..>")]
@@ -16,12 +15,13 @@ fn options() -> &'static str {
 // Corrected GET route
 #[get("/fill")]
 async fn fill() {
-    fill_indices(1, 30).await;
+    fill_indices(1, 20).await;
 }
 
 // Corrected POST route
 #[post("/get-results", data = "<query>")]
 pub fn get_results(query: String) -> Json<Vec<Document>> {
+    println!("Obtained the query: {}", query);
     match get_search_results(query) {
         Ok(results) => Json(results),
         Err(_) => { 

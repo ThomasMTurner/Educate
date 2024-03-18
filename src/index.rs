@@ -36,29 +36,17 @@ fn tokenise (content: String) -> Vec<String> {
     
 // Create fresh or filled index and place at the file path specified.
 pub fn create_index_file(file_path: &str, index: &Indexer) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Attempting to create index...");
     let path = Path::new(file_path);
         
     // If indices directory doesn't exist, create it.
     if !path.exists() {
         fs::create_dir_all(INDEX_DIR)?;
     }
-        
-    // Read index to see if already exists. Based on whether the file itself is present.
-    let file_read = File::open(file_path);
-    match file_read {
-        Ok(_) => {
-            println!("Index already exists.");
-            Ok(())
-        },
-        Err(_) => {
-            // If doesn't exist: create new and serialise Document -> Term / Term -> Document
-            // map into .json file.
-            println!("Creating new index...");
-            let file = File::create(file_path)?;
-            bincode::serialize_into(file, index)?;
-            Ok(())
-        }
-    }
+
+    let file = File::create(file_path)?;
+    bincode::serialize_into(file, index)?;
+    Ok(()) 
 
 }
     
@@ -105,6 +93,7 @@ impl Indexer {
                 for document in documents {
                     let pre_terms: Vec<Vec<String>> = document.content.par_iter().map(|content| tokenise(content.to_string())).collect();
                     let terms = pre_terms.into_iter().flatten().collect();
+                    println!("Obtained terms: {:?}", terms);
                     self.insert(document.clone(), terms);
                 }
 

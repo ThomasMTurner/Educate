@@ -2,8 +2,6 @@
 // obtaining query results.
     
     use std::collections::HashMap;
-    use std::error::Error;
-    use tokio::runtime;
     use crate::rank::get_ranked_documents;
     use crate::index::{Indexer, read_index_file};
     use crate::discover::get_domains_and_webpages;
@@ -34,8 +32,6 @@
 
         
         if new_index {
-            let rt = runtime::Builder::new_current_thread().enable_all().build().unwrap();
-
             let mut seed_urls: Vec<String> = Vec::new();
 
             match get_domains_and_webpages() {
@@ -54,7 +50,8 @@
         
             // Modify to handle error case explicitly.
             let results: Vec<CrawlResult> = get_crawled(seed_urls, crawl_depth.into()).await;
-            let parsed_results = parse_crawl_results(results).await;
+            println!("Completed crawling results... {:?}", results);
+            let parsed_results = parse_crawl_results(results);
         
             // Creates raw indices - stores in file (if file isn't already filled) and stores indices raw for later use.
             let _ = Indexer::TermIndex(HashMap::new()).new(parsed_results.clone());
@@ -97,6 +94,8 @@
                 return Err(())
             }
         };
+
+        println!("Index loaded successfully.");
 
         // Assuming get_ranked_documents is an async function that returns Result<Vec<Document>, ErrorType>
         let results: Vec<Document> = get_ranked_documents(query, Indexer::TermIndex(index_map))?;

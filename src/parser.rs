@@ -110,7 +110,7 @@ impl std::fmt::Display for Document {
 
 
     // Parse all non-metadata text content.
-    async fn parse_content(document: &Html, content_selector: &Selector, mut content:Vec<String>, skip_translation: bool) -> Result<Vec<String>, Error> {
+    fn parse_content(document: Html, content_selector: &Selector, mut content:Vec<String>, skip_translation: bool) -> Result<Vec<String>, Error> {
         for element in document.select(content_selector) {
             let mut text = element.text().collect::<String>();
             if !text.is_empty() {
@@ -141,23 +141,23 @@ impl std::fmt::Display for Document {
     }
     
     // Parse all results from crawl bot.
-    pub async fn parse_crawl_results(crawl_results: Vec<CrawlResult>) -> Vec<Document> {
+    pub fn parse_crawl_results(crawl_results: Vec<CrawlResult>) -> Vec<Document> {
         println!("Attempting to parse {} crawl results.", crawl_results.len());
         //start_translate_server();
         let mut parsed_results: Vec<Document> = Vec::new();
         for crawl_result in crawl_results {
-            let result = parse_crawl_result(crawl_result).await;
+            let result = parse_crawl_result(crawl_result);
             match result {
                 Ok(document) => parsed_results.push(document),
                 Err(_) => println!("Skipping parsing the result")
             }
         }
         println!("Obtained {} parsed results", parsed_results.len());
-        return parsed_results
+        parsed_results
     }
     
     // Parses raw HTML data from crawler and returns Document type.
-    async fn parse_crawl_result(crawl_result: CrawlResult) -> Result<Document, String> {
+    fn parse_crawl_result(crawl_result: CrawlResult) -> Result<Document, String> {
 
         // utilities for translation
         let mut skip_translation: bool = false;
@@ -177,8 +177,9 @@ impl std::fmt::Display for Document {
         //non-metadata entries
         let mut content: Vec<String> = Vec::new();
         let mut images: Vec<Vec<u8>> = Vec::new();
-        let mut title                = String::new();
-        let document                 = Html::parse_document(&body);
+        let mut title                = String::new(); 
+        let document = Html::parse_document(&body);
+        
 
 
         // Intialise selectors corresponding to above data.
@@ -212,11 +213,11 @@ impl std::fmt::Display for Document {
 
                         return Err("Skip".to_string())
                     }
-                    else {
-                        if language_str == "English" {
+                    
+                    if language_str == "English" {
                             skip_translation = true;
-                        }
                     }
+                    
                 },
 
                 None => ()
@@ -256,7 +257,7 @@ impl std::fmt::Display for Document {
 
         // Parse first h elements and then p elements to gather all of the text content.
         
-        content = parse_content(&document, &p_selector, parse_content(&document, &h_selector, content, skip_translation).await.unwrap(), skip_translation).await.unwrap();
+        content = parse_content(document.clone(), &p_selector, parse_content(document.clone(), &h_selector, content, skip_translation).unwrap(), skip_translation).unwrap();
 
         // Working with metadata: consists of two attributes (name) and (content), where name is covered by cases we want to include, such as description,
         //author, keywords, etc.

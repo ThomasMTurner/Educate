@@ -16,12 +16,12 @@ loaded_saved_model = False
 
 try:  
     # Load the model in text format
-    if not os.path.exists('modules/scripts/model.bin'):
-        model = KeyedVectors.load_word2vec_format('modules/scripts/models/Word2VecModel.vec', binary=False)
+    if not os.path.exists('./scripts/models/model.bin'):
+        model = KeyedVectors.load_word2vec_format('./scripts/models/Word2VecModel.vec', binary=False)
 
     else:
         loaded_saved_model = True
-        model = KeyedVectors.load_word2vec_format('modules/scripts/model.bin', binary=True)
+        model = KeyedVectors.load_word2vec_format('./scripts/models/model.bin', binary=True)
 
 
 except Exception as e:
@@ -36,7 +36,7 @@ if model is None:
 else:
     ## Save the model in binary format.
     if not loaded_saved_model:
-        model.save_word2vec_format('modules/scripts/model.bin', binary=True)
+        model.save_word2vec_format('./scripts/models/model.bin', binary=True)
     word_embedding = model[TERM]
 
 if word_embedding is None:

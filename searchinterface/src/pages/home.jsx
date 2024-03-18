@@ -5,10 +5,11 @@ import { FaHistory } from "react-icons/fa";
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import ClipLoader from 'react-spinners/ClipLoader';
-//import { TbArrowBackUp } from "react-icons/tb";
 import axios from 'axios';
 import SearchResult from '../components/SearchResult';
 
+// Overriding the default timeout to 5 minutes while we speedup the search request.
+axios.defaults.timeout = 300000;
 
 const Home = () => {
   const [iconColours, setIconColours] = useState({"Settings": "gray", "History": "gray"})
@@ -49,13 +50,16 @@ const Home = () => {
                 await axios.post('http://localhost:9797/search/get-results', data)
                     .then(response => {
                     // Handle the response
-                    setSearchResults(response.data);
-                    console.log(response.data);
+                    setSearchResults(response.data)
+                    setLoadingResults(false)
+                    setSearch(false)
+                    console.log("Obtained the response from search engine, now printing")
+                    console.log(response.data)
                 })
                 .catch(error => {
                     // Ha
                     // ndle the error
-                    console.error('There was an error!', error);
+                    console.error('There was an error!', error)
                 });
 
        
@@ -100,7 +104,7 @@ const Home = () => {
         </div>
         ) : (
         <motion.div 
-            style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent:'center', textAlign:'center'}}
+            style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent:'center', textAlign:'center', gap: '2rem'}}
             initial={{opacity: 0 ,y: 0, x: 475}}
             animate={{opacity: 1, y: -200}}
             transition={{duration: 0.5}}
@@ -110,7 +114,7 @@ const Home = () => {
             </div>
             { !(searchResults.length == 0) && (
                 !(loadingResults) ? (
-                    documents.map((doc, index) => {
+                    searchResults.map((document, index) => {
                         return (
                             <div key={index}>
                                 <SearchResult document={document}/>
