@@ -2,7 +2,7 @@ import {AiOutlineSearch} from 'react-icons/ai';
 import {useState, useEffect} from 'react';
 import styles from '../styles/component-styles/SearchBar.module.css';
 
-const SearchBar = ({setSearchQuery, setSearch, searchBarPosition}) => {
+const SearchBar = ({setSearchQuery, setSearch, searchBarPosition, containerPosition}) => {
     const [searchIconColour, setSearchIconColour] = useState('grey');
     const [searchQueryTemp, setSearchQueryTemp] = useState('');
     
@@ -25,7 +25,8 @@ const SearchBar = ({setSearchQuery, setSearch, searchBarPosition}) => {
                     width: '25rem',
                     fontFamily: 'helvetica',
                     fontSize: '0.8rem',
-                    boxShadow: '2px 2px 4px 4px solid black'
+                    boxShadow: '2px 2px 4px 4px solid black',
+                    left: `${containerPosition}rem`
                 }}
             />
             

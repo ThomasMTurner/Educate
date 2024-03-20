@@ -94,7 +94,6 @@
     
 
     fn make_embedding (term: String) -> Option<Result<Vec<f32>, serde_json::Error>> {
-       println!("Attempting to embed the term: {}", term);
         // Obtain script output from scripts / embedding.py - returns term vector as a
         // JSON-encoded array.
         let script = "./scripts/embedding.py";
@@ -106,13 +105,9 @@
             .expect("Failed to make embedding");
 
 
-        println!("Should have generated embedding output here.");
-        println!("Obtained the following embedding output {:?}", embedding_output);
-                
         // Obtain JSON string from the script output.
         let embedding_json = std::str::from_utf8(&embedding_output.stdout).expect("Embedding output not UTF-8");
 
-        println!("Obtained the embedding_json: {}", embedding_json);
                     
         // Obtain deserialised value - skip pass of loop for EOF header error.
         let embedding_json_value: Value;
@@ -140,9 +135,7 @@
             .map(|v| v as f32)
             .collect::<Vec<f32>>();
 
-        println!("Obtained the following length embedding directly from Word2Vec {:?}", term_vector.len());
 
-        println!("Obtained term vector {:?}", term_vector);
         Some(Ok(term_vector))
     }
 
@@ -173,40 +166,37 @@
     // No Error type provided as each error case is handled by a panic.
     // Temporarily public for testing.
     
+
+
+
     pub fn embed_documents(document_terms: HashMap<Document, Vec<String>>) -> Vec<EmbeddedDocument> {
         // Store embeddings
         let mut embeddings = vec![];
-        let mut features: HashMap<Document, Vec<Vec<f32>>> = HashMap::new();
- 
-        // Generate the feature vectors for each term.
-        for (document, terms) in document_terms {
-            if terms.len() < 8 {
-                continue
-            }
-            
-            let feature_vectors: Vec<Vec<f32>> = terms[0..7].par_iter()
-                .filter_map(|term| {
-                match make_embedding(term.to_string()) {
-                    Some(result) => match result {
-                        Ok(vector) => Some(vector),
-                        Err(e) => {
-                            eprintln!("Obtained error embedding term: {}", e);
-                            None
-                        }
-                    },
-                    None => None,
-                }
-            })
-            .collect();
-            
-            println!("Obtained {} feature vectors for this document.", feature_vectors.len());
-            features.insert(document, feature_vectors);
+        let features: HashMap<Document, Vec<Vec<f32>>> = HashMap::new();
 
-            // Push the averaged feature vector for this document.
-            //embeddings.push(EmbeddedDocument {document: document.clone(), embedding: get_average_vector(features)});
-        }
-        
-        println!("Successfully obtained {} embedded documents", embeddings.len());
+        document_terms.par_iter().for_each(|(document, terms)| {
+            if terms.len() < 8 {
+                return; // Skip documents with less than 8 terms
+            }
+
+            let feature_vectors: Vec<Vec<f32>> = terms[0..15].par_iter()
+                .filter_map(|term| {
+                    match make_embedding(term.to_string()) {
+                        Some(result) => match result {
+                            Ok(vector) => Some(vector),
+                            Err(e) => {
+                                eprintln!("Obtained error embedding term: {}", e);
+                                None
+                            }
+                        },
+                        None => None,
+                    }
+                })
+                .collect();
+
+            features.clone().insert(document.clone(), feature_vectors);
+        });
+
 
         // Now need to normalise all of the feature lengths, get their average vectors and cast
         // these to EmbeddedDocument's.
@@ -284,11 +274,6 @@
         Ok(clusters)
     }
 
-
-
-
-
- 
     
     // Minkowski distance metric - uses Pca model to reduce query vector where necessary to size of the centroid.
     fn distance (a: Vec<f32>, b: Vec<f32>) -> f32 {
@@ -336,27 +321,16 @@
                 panic!("Index type not supported.");
             }
         }
-
-        println!("Collected terms from the index - now embedding documents.");
-        for terms in document_terms.values() {
-            for term in terms {
-                println!("Term obtained: {}", term);
-            }
-        }
         
         // Embed documents
         let embeddings = embed_documents(document_terms);
         let mut clusters: Vec<Cluster> = vec![];
-
-        println!("Successfully embedded documents");
 
         match generate_clusters(embeddings.clone()) {
             Ok(clusters_out) => clusters = clusters_out,
             Err(_) => {}
         }
 
-        println!("Generated clusters");
-         
         // Embed the query for similarity comparison with cluster centroids.
         // Split the query into multiple terms - then normalise these outputs and average them.
         let query_terms = query.split_whitespace().collect::<Vec<&str>>();
@@ -376,7 +350,6 @@
 
 
         let mut query_embedding = get_average_vector(query_embeddings);
-        println!("Obtained query embedding {:?}", query_embedding);
 
         let centroid_len = clusters[0].centroid.len();
         let query_len = query_embedding.len();
@@ -399,14 +372,6 @@
 
         for doc in &min.unwrap().documents {
             ranked_docs.push(doc.document.clone());
-        }
-
-        println!("Obtained ranked documents.");
-        
-        for (i, doc) in ranked_docs.clone().into_iter().enumerate() {
-            for text in doc.content {
-                println!("{}. {}: {}", i + 1, doc.title, text);
-            }
         }
         
         Ok(ranked_docs)

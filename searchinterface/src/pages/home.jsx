@@ -8,8 +8,8 @@ import ClipLoader from 'react-spinners/ClipLoader';
 import axios from 'axios';
 import SearchResult from '../components/SearchResult';
 
-// Overriding the default timeout to 5 minutes while we speedup the search request.
-axios.defaults.timeout = 300000;
+// Overriding the default timeout to 10 minutes while we speedup the search request.
+axios.defaults.timeout = 600000;
 
 const Home = () => {
   const [iconColours, setIconColours] = useState({"Settings": "gray", "History": "gray"})
@@ -17,6 +17,7 @@ const Home = () => {
   const [searchQuery, setSearchQuery] = useState("")
   const [search, setSearch] = useState(false)
   const [searchResults, setSearchResults] = useState({})
+  const [summaries, setSummaries] = useState({})
   const [loadingResults, setLoadingResults] = useState(false)
  
   const setIconColour = (iconName, colour) => {
@@ -36,7 +37,8 @@ const Home = () => {
                 const data = {
                     query: searchQuery
                 }
-
+                
+                // Call to fill indices with new documents.
                 await axios.get("http://localhost:9797/search/fill")
                     .then((response) => {
                         console.log(response.data)
@@ -44,38 +46,42 @@ const Home = () => {
                     .catch((error) => {
                         console.error(error)
                     })
+                
+    
 
-                // Deal with API call here to collect search results (axios)
-                // Make the POST request
-                await axios.post('http://localhost:9797/search/get-results', data)
-                    .then(response => {
-                    // Handle the response
-                    setSearchResults(response.data)
-                    setLoadingResults(false)
-                    setSearch(false)
-                    console.log("Obtained the response from search engine, now printing")
-                    console.log(response.data)
+                // Call to rank existing indices based on search query.
+                const response = await axios.post('http://localhost:9797/search/get-results', data)  
+                const indexedResults = response.data.map((result, index) => {
+                // Start indexing from 1
+                    const id = index + 1;
+                    return { ...result, id }
                 })
-                .catch(error => {
-                    // Ha
-                    // ndle the error
-                    console.error('There was an error!', error)
-                });
 
-       
-                // Generate an array of search results data, such that a set
-                // of SearchResult components can be rendered capturing each result.
+                setSearchResults(indexedResults)
+                
+                // Call to summarise each search result
+                Promise.all(searchResults.map(async (result) => {
+                    try {
+                        const response = await axios.post('http://localhost:11434/api/generate', {
+                            model: 'llama2-uncensored', 
+                            prompt: "Summarise the following text: " + result.content, 
+                        });
+                        setSummaries(prev => ({...prev, [result.id]: response.data}))
+                        console.log(summaries)
+                    } catch (error) {
+                        console.error("There was an error: ", error);
+                    }
+                }));
             }
 
             handleSearch()
         }
 
     }, [search])
+    
 
-  
- 
 
-  return (
+    return (
     (!resultsScreen) ? (
         <div className={styles.main}>
             <motion.div 
@@ -99,36 +105,31 @@ const Home = () => {
                 <p>Providing search results for educational content, carefully selected from research- and academic-oriented domains.</p>
             </motion.div>
             <div>
-                <SearchBar searchBarPosition={23} setSearchQuery={setSearchQuery} setSearch={setSearch}/>
+                <SearchBar searchBarPosition={10} setSearchQuery={setSearchQuery} setSearch={setSearch}/>
             </div>
         </div>
         ) : (
         <motion.div 
-            style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent:'center', textAlign:'center', gap: '2rem'}}
+            style={{display: 'flex', flexDirection: 'column', gap:'4rem', position: 'relative', alignItems: 'center', justifyContent: 'center'}}
             initial={{opacity: 0 ,y: 0, x: 475}}
             animate={{opacity: 1, y: -200}}
             transition={{duration: 0.5}}
-        >
-            <div>
-                <SearchBar searchBarPosition={18} setSearchQuery={setSearchQuery} setSearch={setSearch}/>
-            </div>
+        >   
             { !(searchResults.length == 0) && (
                 !(loadingResults) ? (
                     searchResults.map((document, index) => {
                         return (
-                            <div key={index}>
-                                <SearchResult document={document}/>
+                            <div key={index} style={{position:'relative', display: 'flex'}}>
+                                <SearchResult document={document} summary={summaries[document.id]}/>
                             </div>
                         );
                     })
                 ) : (
-                    <div 
-                        style={{position: 'relative', top:'10rem'}}
-                        initial={{opacity: 0 }}
-                        animate={{opacity: 1}}
-                        transition={{duration: 0.5}} 
-                    >
-                        <ClipLoader color="#52bfd9" size={40} />
+                    <div style={{display:'flex', position:'relative',flexDirection:'column', gap:'10rem', alignItems:'center', justifyContent:'center'}}>
+                        <SearchBar searchBarPosition={24} containerPosition={0} setSearchQuery={setSearchQuery} setSearch={setSearch}/>
+                        <div style={{position: 'relative', left:'13rem'}}>
+                            <ClipLoader color="#52bfd9" size={40} />
+                        </div>
                     </div>
                 )
             )
@@ -140,5 +141,7 @@ const Home = () => {
     )
   );
 };
+  
+
 
 export default Home;

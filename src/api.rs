@@ -15,7 +15,7 @@ fn options() -> &'static str {
 // Corrected GET route
 #[get("/fill")]
 async fn fill() {
-    fill_indices(1, 20).await;
+    fill_indices(1, 25).await;
 }
 
 // Corrected POST route

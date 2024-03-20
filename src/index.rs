@@ -26,7 +26,7 @@ fn tokenise (content: String) -> Vec<String> {
         
     //remove stop words - words which do not add semantic value to the string as a sentence.
     let stop_words = vec![
-   "a", "an", "the", "and", "but", "in", "on", "of", "with", "is", "was", "by", "at", "to", "from", "which", "you", "it", "this", "that", "or", "be", "are", "been", "were", "would", "will", "shall", "should", "can", "could", "has", "have", "had", "not", "if", "else", "then", "for", "but", "or", "so", "no", "nor", "on", "at", "to", "from", "by", "in", "of", "up", "out", "over", "under", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "don", "should", "now"
+   "a","your", "an", "the", "and", "but", "in", "on", "of", "with", "is", "was", "by", "at", "to", "from", "which", "you", "it", "this", "that", "or", "be", "are", "been", "were", "would", "will", "shall", "should", "can", "could", "has", "have", "had", "not", "if", "else", "then", "for", "but", "or", "so", "no", "nor", "on", "at", "to", "from", "by", "in", "of", "up", "out", "over", "under", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "don", "should", "now"
     ];      
 
     words.into_iter().filter(|word| !stop_words.contains(&word.as_str())).collect()

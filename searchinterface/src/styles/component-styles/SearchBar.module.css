@@ -1,6 +1,6 @@
 .SearchBarContainer {
-    position: fixed;
     display:flex;
+    position: relative;
     flex-direction: row;
     align-items: center;
     justify-content: center;
