@@ -12,13 +12,12 @@
     // modification).
     pub async fn fill_indices (crawl_depth: u8, seed_count:u8) -> Option<HashMap<Document, Vec<String>>> {
         let new_index: bool;
-        let mut index_map: HashMap<Document, Vec<String>>;
+        let index_map: HashMap<Document, Vec<String>>;
 
         println!("Making request to fill indices");
 
         match read_index_file("./indices/dterm.json") {
-            Ok(Indexer::TermIndex(map)) => {
-                index_map = map;
+            Ok(Indexer::TermIndex(_)) => {
                 new_index = false
             }
             Ok(Indexer::InvertedIndex(_)) => {
@@ -82,22 +81,23 @@
         }
     }
 
-    pub fn get_search_results(query: String) -> Result<Vec<Document>, ()> {
+    pub fn get_search_results(query: String) -> Result<Vec<Document>, String> {
         let index_map = match read_index_file("./indices/dterm.json") {
             Ok(Indexer::TermIndex(map)) => map,
             Ok(Indexer::InvertedIndex(_)) => {
-                return Err(())
+                return Err(2.to_string())
             }
             Err(e) => {
                 eprintln!("Index not found due to: {}", e);
                 // Modify to fill index where it doesn't exist.
-                return Err(())
+                return Err(2.to_string())
             }
         };
 
         println!("Index loaded successfully.");
 
-        // Assuming get_ranked_documents is an async function that returns Result<Vec<Document>, ErrorType>
+        // TO DO: handle error case explicitly (-1: unknown error, 1: terms not found in model
+        // vocabulary)
         let results: Vec<Document> = get_ranked_documents(query, Indexer::TermIndex(index_map))?;
         Ok(results)
     }

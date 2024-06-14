@@ -15,24 +15,34 @@ fn options() -> &'static str {
 // Corrected GET route
 #[get("/fill")]
 async fn fill() {
-    fill_indices(1, 25).await;
+    fill_indices(1, 30).await;
 }
 
 // Corrected POST route
 #[post("/get-results", data = "<query>")]
 pub fn get_results(query: String) -> Json<Vec<Document>> {
-    println!("Obtained the query: {}", query);
+    // TO DO: handle error codes (-1, 1, 2) explicitly.
     match get_search_results(query) {
         Ok(results) => Json(results),
-        Err(_) => { 
-            eprintln!("Could not send HTTP response");
-            Json(vec![])
+        Err(e) => {
+            match e.as_str() {
+                "-1" => Json(vec![]),
+                "1" => Json(vec![]),
+                "2" => Json(vec![]),
+                _ => Json(vec![]),
+            }
         }
+
+        //Err(e) => { 
+            //eprintln!("Could not send HTTP response");
+            //Json(vec![])
+        //}
     }
 }
 
 // CORS Fairing
 pub struct CORS;
+
 
 #[rocket::async_trait]
 impl Fairing for CORS {
@@ -58,4 +68,6 @@ pub fn rocket() -> _ {
         .attach(CORS)
         .mount("/search", routes![fill, get_results, options])
 }
+
+
 

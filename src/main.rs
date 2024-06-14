@@ -9,7 +9,6 @@ mod index;
 mod discover;
 
 use crate::api::rocket;
-use tokio::runtime::Runtime;
 
 fn main() {
     call_api();
@@ -18,5 +17,6 @@ fn main() {
 
 #[rocket::main]
 async fn call_api() {
-    rocket().launch().await;
+    let _ = rocket().launch().await;
 }
+

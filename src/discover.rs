@@ -15,19 +15,22 @@ struct EduDomain {
 
 //should return error in the case of a problem with IO operation, otherwise should just return string contents.
 fn read_domains_json() -> Result<String, std::io::Error> {
+    println!("Reading domains.json");
     let mut file = File::open("./discovery_data/domains.json")?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
+    println!("{}", contents);
     Ok(contents)
 }
 
 pub fn get_domains_and_webpages() -> Result<(Vec<String> , Vec<String>), std::io::Error> {
-    let mut edu_domains: Vec<EduDomain> = Vec::new();
-    let mut domains: Vec<String> = Vec::new();
-    let mut seed_urls: Vec<String> = Vec::new();
+    let edu_domains: Vec<EduDomain>;
+    let mut domains: Vec<String>;
+    let mut seed_urls: Vec<String>;
 
     match read_domains_json() {
         Ok(contents) => {
+            println!("JSON: {}", contents);
             // Here we use Serde's deserialiser to convert JSON to string, and return the result of this conversion (admittedly unsafely)
             edu_domains = from_str(&contents).unwrap();
             domains = Vec::new();

@@ -18,6 +18,7 @@ pub struct CrawlResult {
     pub body: String,
 }
 
+
 // Implement ordering to compare two CrawlResults for priority, based on smallest crawl_depth.
 impl PartialOrd for UrlToVisit {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -63,7 +64,6 @@ async fn get_crawl_result(url: &str) -> Result<CrawlResult, reqwest::Error> {
     
 
 async fn crawl(seed_urls: &mut Vec<String>, max_depth: u32) -> Vec<CrawlResult> {
-
     // Initialise visited to not re-process
     let mut visited: Vec<UrlToVisit> = Vec::new();
 

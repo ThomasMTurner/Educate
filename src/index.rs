@@ -22,11 +22,11 @@ fn tokenise (content: String) -> Vec<String> {
     let content: String = content.chars().filter(|c| c.is_alphabetic() || c.is_whitespace()).collect();
 
     //delimit words by comma
-    let words: Vec<String> = content.split_whitespace().map(|s| s.to_string()).collect();
+    let words: Vec<String> = content.split_whitespace().map(|s| s.to_string().to_lowercase()).collect();
         
     //remove stop words - words which do not add semantic value to the string as a sentence.
     let stop_words = vec![
-   "a","your", "an", "the", "and", "but", "in", "on", "of", "with", "is", "was", "by", "at", "to", "from", "which", "you", "it", "this", "that", "or", "be", "are", "been", "were", "would", "will", "shall", "should", "can", "could", "has", "have", "had", "not", "if", "else", "then", "for", "but", "or", "so", "no", "nor", "on", "at", "to", "from", "by", "in", "of", "up", "out", "over", "under", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "don", "should", "now"
+   "a","your", "an", "the", "and", "but", "in", "on", "of", "with", "is", "was", "by", "at", "to", "from", "which", "you", "it", "this", "that", "or", "be", "are", "been", "were", "would", "will", "shall", "should", "can", "could", "has", "have", "had", "not", "if", "else", "then", "for", "but", "or", "so", "no", "nor", "on", "at", "to", "from", "by", "in", "of", "up", "out", "over", "under", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "don", "should", "now", "we"
     ];      
 
     words.into_iter().filter(|word| !stop_words.contains(&word.as_str())).collect()
@@ -58,13 +58,13 @@ pub fn read_index_file(file_path: &str) -> Result<Indexer, Box<dyn std::error::E
 }
 
 // Delete the file at the file path specified.
-pub fn delete_index_file(file_path: &str) -> std::io::Result<()> {
+pub fn _delete_index_file(file_path: &str) -> std::io::Result<()> {
     fs::remove_file(file_path)?;
     Ok(())
 }
     
 // Delete all indices, need to store file path locations in separate file.
-pub fn delete_all() -> std::io::Result<()> {
+pub fn _delete_all() -> std::io::Result<()> {
     for index in fs::read_dir(INDEX_DIR)? {
         let index = index?;
         if index.file_type()?.is_file() {

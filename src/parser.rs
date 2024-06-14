@@ -11,7 +11,7 @@ use lingua::{Language, LanguageDetector, LanguageDetectorBuilder};
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Document {
     pub url: String,
-    body: String,
+    //body: String,
     pub content: Vec<String>,
     pub description: String,
     images: Vec<Vec<u8>>,
@@ -20,7 +20,7 @@ pub struct Document {
 }
 
 // Directly spawns child process to docker instance of LibreTranslate server.
-fn start_translate_server() {
+fn _start_translate_server() {
     let run_translate_server = "docker run -ti --rm -p 127.0.0.1:5000:5000 libretranslate/libretranslate";
     let output = Command::new("sh").arg("-c").arg(run_translate_server).output().expect("Failed to run translation server.");
     println!("Starting translation server.");
@@ -41,7 +41,7 @@ fn get_source_language(text: String) -> Option<Language> {
     
 // Sends POST request to LibreTranslate API, auto-detecting source language and finally
 // converting to English.
-pub async fn convert_text_to_english(text: String) -> Result<String, Error> {
+pub async fn _convert_text_to_english(text: String) -> Result<String, Error> {
     let mut source = String::new();
     let mut skip_translation: bool = false;
 
@@ -97,8 +97,8 @@ pub async fn convert_text_to_english(text: String) -> Result<String, Error> {
         Ok("Skip".to_string())
     }
 }
-    
-    
+
+
     
 // Implement behaviour for println! on Document type.
 impl std::fmt::Display for Document {
@@ -112,7 +112,7 @@ impl std::fmt::Display for Document {
     // Parse all non-metadata text content.
     fn parse_content(document: Html, content_selector: &Selector, mut content:Vec<String>, skip_translation: bool) -> Result<Vec<String>, Error> {
         for element in document.select(content_selector) {
-            let mut text = element.text().collect::<String>();
+            let text = element.text().collect::<String>();
             if !text.is_empty() {
                 if !skip_translation {
                     println!("Skipping translation for {}", text);
@@ -317,7 +317,7 @@ impl std::fmt::Display for Document {
 
         let new_document = Document {
             url,
-            body,
+            //body,
             content,
             description,
             images,

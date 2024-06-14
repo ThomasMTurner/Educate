@@ -4,7 +4,6 @@
     //    representative for each cluster based on distance to centroid / rank based on distance to
     //    centroid.
     // 2. (Extra) PageRank to order clusters based on link strength.
-    
 
     use std::collections::HashMap;
     use std::fmt;
@@ -13,18 +12,17 @@
     use linfa_reduction::Pca;
     use linfa::Dataset;
     use linfa::traits::{Fit, Predict};
-    use std::process::Command;
     use crate::parser::Document;
     use crate::index::Indexer;
-    use std::cmp::min;
+    // Necessary imports for Python-Rust IPC
+    use std::process::Command;
     use serde_json::Value;
     use serde_json::json;
-    use serde_json::error::Category;
+    //use serde_json::error::Category;
     use serde::{Serialize, Deserialize};
-    
-    
+    use ndarray::Array1;
+
     //METHOD:
-    //
     //  1. Users can choose between different embedding methods, specifically (1) TF-IDF (2) Word2Vec
     //  2. Word2Vec method:
     //  2a. Collect all terms for that document (specific methods for handling the document-term
@@ -39,7 +37,6 @@
     
 
     // Define a simple structure to store our embedded documents.
-    
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct EmbeddedDocument {
         pub document: Document,
@@ -66,7 +63,6 @@
         }
     }
 
-
     // Obtain vector of terms for both document-term index and inverted index.
     // Term collecting not currently supported for the inverted index - that is - Word2Vec
     // preferentially used for document-term and more suitable embedding (TF-IDF?) for the inverted.
@@ -78,86 +74,48 @@
         }
     }
 
-    // Obtain the average vector over a set of feature vectors - needed as each term generates
-    // their own feature vector. Need a single representation for a document.
-
     fn get_average_vector (features: Vec<Vec<f32>>) -> Vec<f32> {
-        let avg_vector: Vec<f32> = features.par_iter().map(|feature| {
-            let sum: f32 = feature.iter().sum();
-            let avg = sum / feature.len() as f32;
-            avg
-        })
-        .collect();
-        
-        avg_vector
-    } 
-    
-
-    fn make_embedding (term: String) -> Option<Result<Vec<f32>, serde_json::Error>> {
-        // Obtain script output from scripts / embedding.py - returns term vector as a
-        // JSON-encoded array.
-        let script = "./scripts/embedding.py";
-
-        let embedding_output = Command::new("python3")
-            .arg(script)
-            .arg(term)
-            .output()
-            .expect("Failed to make embedding");
-
-
-        // Obtain JSON string from the script output.
-        let embedding_json = std::str::from_utf8(&embedding_output.stdout).expect("Embedding output not UTF-8");
-
-                    
-        // Obtain deserialised value - skip pass of loop for EOF header error.
-        let embedding_json_value: Value;
-        match serde_json::from_str(embedding_json) {
-            Ok(value) => {
-                embedding_json_value = value;
-            }
-            Err(e) => {
-                match e.classify() {
-                    Category::Eof => { 
-                        println!("Obtained end of file header error - skipping to next term.");
-                        return None
-                    }
-                     _ => return Some(Err(e))
-                }
-            }
+        // LATER: optimise with a fold operation.
+        let mut acc: Array1<f32> = Array1::zeros(300);
+        for f in &features {
+            let arr = Array1::from_vec(f.to_vec());
+            acc = &acc + &arr;
         }
- 
-        // Collect deserialised feature vector.
-        let term_vector = embedding_json_value.as_array()
-            // Again may consider modifying - as this panics the program.
-            .expect("JSON is not an array")
-            .par_iter()
-            .map(|v| v.as_f64().expect("JSON value is not a number"))
-            .map(|v| v as f32)
-            .collect::<Vec<f32>>();
 
-
-        Some(Ok(term_vector))
+        let casted_acc: Vec<f32> = acc.to_vec();
+        return casted_acc.par_iter().map(|x| x / features.len() as f32).collect();
     }
 
+    fn make_embeddings (terms: Vec<String>) -> Result<Vec<Vec<f32>>, String> {
+        let mut embedding_script = Command::new("python3");
+        embedding_script.arg("scripts/embedding.py");
 
-    fn normalise_features(features: HashMap<Document, Vec<Vec<f32>>>) -> HashMap<Document, Vec<f32>> {
-        // Take the map, reduce each features vector to the same length as the smallest one, then
-        // return the document -> averaged features vector map.
-        
-        // Discover the minimum feature length.
-        let mut min_feature_len: u32 = 10000;
-        for (_, feature) in &features {
-            min_feature_len = min(min_feature_len, feature.len() as u32);
+        for term in &terms {
+            embedding_script.arg(term);
         }
+        
+        let output = embedding_script.output().expect("Failed to make embeddings");
 
-        // Reduce all feature vectors to that length.
-        let mut normalised_features = HashMap::new();
-        for (document, feature) in &features {
-            normalised_features.insert(document.clone(), get_average_vector(feature[0..min_feature_len as usize].to_vec()));
-        } 
+        let embedding_json = std::str::from_utf8(&output.stdout).expect("Embedding output not UTF-8");
 
-        normalised_features
+        let value: Value = serde_json::from_str(embedding_json)
+            .map_err(|e| format!("Failed to parse JSON {} due to: {}", embedding_json, e))?;
 
+        match value {
+            Value::Array(embeddings) => Ok(embeddings.into_iter().map(|embedding| embedding.as_array().unwrap().into_iter()
+                .map(|num| num.as_f64().unwrap() as f32).collect()).collect()),
+            Value::Number(error) if error.is_i64() => {
+                match error.as_i64().unwrap() {
+                    1 => {
+                        return Err(1.to_string());
+                    }
+                    _ => {
+                        return Err((-1).to_string());
+                    }
+                }
+            } 
+            _ => Err((-1).to_string())
+        }
     }
 
     
@@ -165,68 +123,56 @@
     // Need to make use of Python Gensim library from within Rust.
     // No Error type provided as each error case is handled by a panic.
     // Temporarily public for testing.
-    
+    pub fn embed_documents(document_terms: HashMap<Document, Vec<String>>, num_terms: u32) -> Result<Vec<EmbeddedDocument>, String> {
+        let mut global_embeddings: Vec<EmbeddedDocument> = Vec::new();
 
+        document_terms.iter().for_each(|(document, terms)| {
+            if terms.len() < 3 {
+                return; 
+            }
+            
+            let local_embeddings: Vec<Vec<f32>>;
 
-
-    pub fn embed_documents(document_terms: HashMap<Document, Vec<String>>) -> Vec<EmbeddedDocument> {
-        // Store embeddings
-        let mut embeddings = vec![];
-        let features: HashMap<Document, Vec<Vec<f32>>> = HashMap::new();
-
-        document_terms.par_iter().for_each(|(document, terms)| {
-            if terms.len() < 8 {
-                return; // Skip documents with less than 8 terms
+            match make_embeddings(terms[0..num_terms as usize].to_vec()) {
+                Ok(embeddings) => local_embeddings = embeddings,
+                Err(_) => {
+                    return
+                }
             }
 
-            let feature_vectors: Vec<Vec<f32>> = terms[0..15].par_iter()
-                .filter_map(|term| {
-                    match make_embedding(term.to_string()) {
-                        Some(result) => match result {
-                            Ok(vector) => Some(vector),
-                            Err(e) => {
-                                eprintln!("Obtained error embedding term: {}", e);
-                                None
-                            }
-                        },
-                        None => None,
-                    }
-                })
-                .collect();
-
-            features.clone().insert(document.clone(), feature_vectors);
+            let doc = EmbeddedDocument { 
+                document: document.clone(),
+                embedding: get_average_vector(local_embeddings)
+            };
+            
+            println!("Embedded document: {:?}", doc.document.title);
+            
+            global_embeddings.push(doc);
+            
         });
 
-
-        // Now need to normalise all of the feature lengths, get their average vectors and cast
-        // these to EmbeddedDocument's.
-        let normalised_features: HashMap<Document, Vec<f32>> = normalise_features(features);
-        for (document, feature) in normalised_features {
-            embeddings.push(EmbeddedDocument {document: document.clone(), embedding: feature});
+        if global_embeddings.is_empty() {
+            return Err((-1).to_string());
         }
 
-        // Return the embeddings.
-        embeddings
+        Ok(global_embeddings)
+            
     }
+
+
     
-
-
-
     // Clusters similar documents together using k-means. Need to store the clusters, mean centroid
     // value and the distance for each document to their respective centroid. Need to specify a
     // different type for this.
-    
-    
     pub fn generate_clusters (embeddings: Vec<EmbeddedDocument>) -> Result<Vec<Cluster>, ()> {
-         
+        for embedding in &embeddings {
+            println!("Embedding: {:?}", embedding.embedding);
+        }
+
         // Collect embedded samples - as float vectors.
         let samples = embeddings.par_iter()
             .map(|doc| doc.embedding.clone())
             .collect::<Vec<Vec<f32>>>();
-        
-        // Need to store partitioned cluster (that is the [[embeddings]] for each cluster).
-        // Also need the centroid for each cluster.
-        // I.e. [[([embeddings], centroid)]]
         
         let script = "./scripts/cluster.py";    
 
@@ -237,7 +183,7 @@
             .expect("Failed to make clusters");
 
         let clusters_json = std::str::from_utf8(&clusters_output.stdout).expect("Clusters output not streamed as UTF-8 bytes");
- 
+
         let clusters_json_value: Value;
 
         match serde_json::from_str(clusters_json) {
@@ -256,8 +202,7 @@
                 let cluster_embeddings: Vec<Vec<f32>> = serde_json::from_value(cluster_arr[1].clone()).expect("Embeddings cluster JSON is not an array");
                 let centroid_out: Vec<f32> = serde_json::from_value(cluster_arr[0].clone()).expect("Centroid JSON is not an array");
                 let mut documents_for_cluster = vec![];
-                // Possibly inefficient way to map embeddings documents back to their container
-                // struct?
+                // Possibly inefficient way to map embeddings documents back to their container struct?
                 for embedded_document in &embeddings {
                     for embedding in &cluster_embeddings {
                         if *embedding == embedded_document.embedding {
@@ -277,16 +222,12 @@
     
     // Minkowski distance metric - uses Pca model to reduce query vector where necessary to size of the centroid.
     fn distance (a: Vec<f32>, b: Vec<f32>) -> f32 {
-        println!("Query vector length (possibly reduced) {}", a.len());
-        println!("Centroid vector length {}", b.len());
-
         let p = a.len() as f32;
         a.par_iter()
             .zip(b.par_iter())
             .map(|(x, y)| (x - y).abs().powf(p))
             .sum::<f32>()
             .powf(1.0 / p)
-
     }
     
     fn reduce_query (query: Vec<f32>, embeddings: Vec<EmbeddedDocument>, centroid_len: usize) -> Vec<f32> {
@@ -309,7 +250,7 @@
     }
     
     
-    pub fn get_ranked_documents (query: String, index: Indexer) -> Result<Vec<Document>, ()> {
+    pub fn get_ranked_documents (query: String, index: Indexer) -> Result<Vec<Document>, String> {
         let document_terms;
         
         // Unwrap the Indexer type
@@ -322,9 +263,10 @@
             }
         }
         
-        // Embed documents
-        let embeddings = embed_documents(document_terms);
-        let mut clusters: Vec<Cluster> = vec![];
+        // TO DO: propagate error code, so that API can send "no documents could be embedded".
+        let embeddings = embed_documents(document_terms, 2)?;
+    
+        let mut clusters: Vec<Cluster> = Vec::new();
 
         match generate_clusters(embeddings.clone()) {
             Ok(clusters_out) => clusters = clusters_out,
@@ -333,23 +275,20 @@
 
         // Embed the query for similarity comparison with cluster centroids.
         // Split the query into multiple terms - then normalise these outputs and average them.
-        let query_terms = query.split_whitespace().collect::<Vec<&str>>();
-        let mut query_embeddings = vec![];
+        let query_value: Value = serde_json::from_str(&query).expect("Query not in JSON format");
+        let extracted_query = query_value.get("query").expect("No query field in JSON");
+        let parsed_query = extracted_query.to_string().replace("\"", "").trim().split_whitespace().map(str::to_string).collect();
         
-        for term in &query_terms {
-            match make_embedding(term.to_string()) {
-                Some(result) => {
-                   match result {
-                        Ok(embedding) => query_embeddings.push(embedding),
-                        Err(e) => eprintln!("Embedding query failed due to: {}", e)
-                    }
-                },
-                None => {}
-            }
-        }
+        println!("Parsed query: {:?}", parsed_query);
+        
+        // TO DO: here propagate error code, so that API can send "query not found in model vocab".
+        let query_embeddings = make_embeddings(parsed_query)?;
 
+        println!("Query embeddings: {:?}", query_embeddings);
 
         let mut query_embedding = get_average_vector(query_embeddings);
+
+        println!("Averaged query embedding: {:?}", query_embedding);
 
         let centroid_len = clusters[0].centroid.len();
         let query_len = query_embedding.len();
@@ -373,9 +312,10 @@
         for doc in &min.unwrap().documents {
             ranked_docs.push(doc.document.clone());
         }
-        
-        Ok(ranked_docs)
 
+        println!("Ranked documents: {:?}", ranked_docs.par_iter().map(|d| d.title.to_string()).collect::<Vec<String>>());
+
+        Ok(ranked_docs)
     }
     
 
