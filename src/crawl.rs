@@ -2,10 +2,12 @@ use scraper::{Html, Selector};
 use std::collections::BinaryHeap;
 use reqwest::get;
 
-
-#[derive(Debug, Eq, PartialEq, Clone)]
+// IMPLEMENTED:
 // Compact representation of each document using the unique URL and how far we have travelled from seed URL's.
 // Using unsigned 32 - allows depth of 2^32 documents, of course no negative depth.
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+
 struct UrlToVisit {
     url: String,
     crawl_depth: u32,
@@ -18,15 +20,16 @@ pub struct CrawlResult {
     pub body: String,
 }
 
-
-// Implement ordering to compare two CrawlResults for priority, based on smallest crawl_depth.
+// IMPLEMENTED:
+// Partial ordering to compare two CrawlResults for priority, based on smallest crawl_depth.
 impl PartialOrd for UrlToVisit {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.crawl_depth.cmp(&other.crawl_depth).reverse())
     }
 }
 
-// Implement the full ordering with error handling layer above to catch errors in comparing tuples.
+// IMPLEMENTED:
+// Full ordering with error handling layer above to catch errors in comparing tuples.
 impl Ord for UrlToVisit {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match self.partial_cmp(other) {
@@ -77,7 +80,6 @@ async fn crawl(seed_urls: &mut Vec<String>, max_depth: u32) -> Vec<CrawlResult> 
             crawl_depth: 0,
         })
     }
-
         
     //while the url_queue is not empty and depth is less than 10
     while !(url_queue.is_empty()) && (url_queue.peek().unwrap().crawl_depth < max_depth) {
@@ -94,15 +96,15 @@ async fn crawl(seed_urls: &mut Vec<String>, max_depth: u32) -> Vec<CrawlResult> 
         if !(visited.contains(&next_url)) {
 
             // Increment depth for new crawl result
-                let new_depth: u32 = next_url.crawl_depth + 1;
+            let new_depth: u32 = next_url.crawl_depth + 1;
                 
             // Get body response from get request - do NOT propagate error to the caller,
             // Simply print out the error response if it happens internally.
-            let mut crawl_result: CrawlResult = CrawlResult{url: "".to_string(), body: "".to_string(), new_urls: Vec::with_capacity(0)};
+            let crawl_result;
 
             match get_crawl_result(&next_url.url).await {
                 Ok(result) => crawl_result = result,
-                Err(e) => eprintln!("Obtained an error crawling a result: {}", e)
+                Err(_) => continue
             }
  
             for url in &crawl_result.new_urls {
@@ -117,10 +119,7 @@ async fn crawl(seed_urls: &mut Vec<String>, max_depth: u32) -> Vec<CrawlResult> 
     
             // Add the URL now to visited
             visited.push(next_url);
-            
         }
-        
-
 
     }
 
@@ -129,7 +128,7 @@ async fn crawl(seed_urls: &mut Vec<String>, max_depth: u32) -> Vec<CrawlResult> 
 }
 
     
-//TO DO: modify to return Result for error handling.
+
 pub async fn get_crawled (seed_urls: Vec<String>, max_depth: u32) -> Vec<CrawlResult> {
     let mut seed_urls = seed_urls;
     let results = crawl(&mut seed_urls, max_depth).await;

@@ -15,7 +15,7 @@ scraper = "0.18.1"
 tokio = "1.36.0"
 persistence = "0.0.6"
 bincode = "1.3.3"
-pyo3 = "0.20.2"
+pyo3 = {version = "0.20.2", features = ["auto-initialize"]}
 lingua = "1.6.2"
 linfa = "0.7.0"
 rkm = "0.8.1"
@@ -23,3 +23,6 @@ ndarray = "0.15.6"
 rayon = "1.8.1"
 linfa-reduction = "0.7.0"
 rocket = { version = "0.5.0", features = ["json"] } 
+fs = "0.0.5"
+itertools = "0.10.5"
+

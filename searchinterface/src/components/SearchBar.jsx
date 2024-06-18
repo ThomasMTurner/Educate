@@ -2,7 +2,7 @@ import {AiOutlineSearch} from 'react-icons/ai';
 import {useState, useEffect} from 'react';
 import styles from '../styles/component-styles/SearchBar.module.css';
 
-const SearchBar = ({setSearchQuery, setSearch, searchBarPosition, containerPosition}) => {
+const SearchBar = ({setSearchQuery, setSearch, searchBarOffset}) => {
     const [searchIconColour, setSearchIconColour] = useState('grey');
     const [searchQueryTemp, setSearchQueryTemp] = useState('');
     
@@ -10,23 +10,29 @@ const SearchBar = ({setSearchQuery, setSearch, searchBarPosition, containerPosit
         setSearchQuery(searchQueryTemp);
     }, [searchQueryTemp]);
 
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            setSearch(true);
+        }
+    }
 
     return (
-        <div className={styles.SearchBarContainer}>
+        <div className={styles.SearchBarContainer} style={{left: `${searchBarOffset}rem`}}>
              <input
                 type="text"
+                onKeyDown={handleKeyPress}
                 className="search-input"
                 value={searchQueryTemp}
                 onChange={(e) => setSearchQueryTemp(e.target.value)}
                 style={{
-                    position: 'fixed',
+                    position: 'relative',
                     padding: '1rem',
                     border: 'none',
-                    width: '25rem',
+                    width: '50rem',
                     fontFamily: 'helvetica',
                     fontSize: '0.8rem',
                     boxShadow: '2px 2px 4px 4px solid black',
-                    left: `${containerPosition}rem`
+                    left:'2.5rem'
                 }}
             />
             
@@ -34,12 +40,10 @@ const SearchBar = ({setSearchQuery, setSearch, searchBarPosition, containerPosit
                 onClick={() => setSearch(true)}
                 onMouseEnter={() => setSearchIconColour('white')}
                 onMouseLeave={() => setSearchIconColour('grey')}
-                size={25}
+                size={50}
                 color={searchIconColour}
                 style={{
-                    position: 'fixed',
-                    top: '-0.7rem',
-                    left: `${searchBarPosition}rem`
+                    zIndex:1
                 }}
             /> 
         </div>

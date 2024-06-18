@@ -36,7 +36,6 @@ fn tokenise (content: String) -> Vec<String> {
     
 // Create fresh or filled index and place at the file path specified.
 pub fn create_index_file(file_path: &str, index: &Indexer) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Attempting to create index...");
     let path = Path::new(file_path);
         
     // If indices directory doesn't exist, create it.
@@ -47,14 +46,25 @@ pub fn create_index_file(file_path: &str, index: &Indexer) -> Result<(), Box<dyn
     let file = File::create(file_path)?;
     bincode::serialize_into(file, index)?;
     Ok(()) 
-
 }
     
 // Read fresh or filled index at file path specified.
-pub fn read_index_file(file_path: &str) -> Result<Indexer, Box<dyn std::error::Error>> {
-    let file = File::open(file_path)?;
-    let read_index: Indexer = bincode::deserialize_from(file)?;
-    Ok(read_index)
+// Originally set to place error on the heap (Box<dyn std::error::Error>)
+pub fn read_index_file(file_path: &str) -> Result<Indexer, String> {
+    let file;
+    let index;
+
+    match File::open(file_path) {
+        Ok(f) => file = f,
+        Err(e) => return Err(e.to_string())
+    }
+
+    match bincode::deserialize_from(file) {
+        Ok(i) => index = i,
+        Err(e) => return Err(e.to_string())
+    }
+
+    Ok(index)
 }
 
 // Delete the file at the file path specified.
@@ -91,9 +101,8 @@ impl Indexer {
         match self {
             Indexer::TermIndex(_) => {
                 for document in documents {
-                    let pre_terms: Vec<Vec<String>> = document.content.par_iter().map(|content| tokenise(content.to_string())).collect();
+                    let pre_terms: Vec<Vec<String>> = document.content.par_iter().map(|content| tokenise(String::from(content))).collect();
                     let terms = pre_terms.into_iter().flatten().collect();
-                    println!("Obtained terms: {:?}", terms);
                     self.insert(document.clone(), terms);
                 }
 
@@ -102,7 +111,7 @@ impl Indexer {
             }
             Indexer::InvertedIndex(_) => {
                 for document in documents {
-                    let pre_terms: Vec<Vec<String>> = document.content.par_iter().map(|content| tokenise(content.to_string())).collect();
+                    let pre_terms: Vec<Vec<String>> = document.content.par_iter().map(|content| tokenise(String::from(content))).collect();
                     let terms = pre_terms.into_iter().flatten().collect();
                     self.insert(document.clone(), terms);
                 }

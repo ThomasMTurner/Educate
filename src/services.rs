@@ -10,11 +10,9 @@
     
     // Fill indices on application startup with crawl bot results (or use cached instead - later
     // modification).
-    pub async fn fill_indices (crawl_depth: u8, seed_count:u8) -> Option<HashMap<Document, Vec<String>>> {
+    pub async fn fill_indices (crawl_depth: u8, seed_count: u8) -> Option<HashMap<Document, Vec<String>>> {
         let new_index: bool;
         let index_map: HashMap<Document, Vec<String>>;
-
-        println!("Making request to fill indices");
 
         match read_index_file("./indices/dterm.json") {
             Ok(Indexer::TermIndex(_)) => {
@@ -31,25 +29,19 @@
 
         
         if new_index {
-            let mut seed_urls: Vec<String> = Vec::new();
+            let seed_urls: Vec<String>;
 
             match get_domains_and_webpages() {
                 Ok((urls, _)) => {
                     seed_urls = urls[0..seed_count as usize].to_vec();
                 }
-                Err(e) => {
-                    eprintln!("Obtained the following error: {}, exiting program...", e)
+                Err(_) => {
+                   return None 
                 }
             }
             
-            for url in &seed_urls {
-                println!("Obtained seed URL: {} ", url);    
-            }
-
-        
             // Modify to handle error case explicitly.
             let results: Vec<CrawlResult> = get_crawled(seed_urls, crawl_depth.into()).await;
-            println!("Completed crawling results... {:?}", results);
             let parsed_results = parse_crawl_results(results);
         
             // Creates raw indices - stores in file (if file isn't already filled) and stores indices raw for later use.
@@ -84,20 +76,12 @@
     pub fn get_search_results(query: String) -> Result<Vec<Document>, String> {
         let index_map = match read_index_file("./indices/dterm.json") {
             Ok(Indexer::TermIndex(map)) => map,
-            Ok(Indexer::InvertedIndex(_)) => {
-                return Err(2.to_string())
-            }
-            Err(e) => {
-                eprintln!("Index not found due to: {}", e);
-                // Modify to fill index where it doesn't exist.
-                return Err(2.to_string())
-            }
+            Ok(Indexer::InvertedIndex(_)) => return Err(String::from('2')),
+            Err(_) => return Err(String::from('2'))
         };
 
-        println!("Index loaded successfully.");
+        println!("Indices loaded");
 
-        // TO DO: handle error case explicitly (-1: unknown error, 1: terms not found in model
-        // vocabulary)
         let results: Vec<Document> = get_ranked_documents(query, Indexer::TermIndex(index_map))?;
         Ok(results)
     }
