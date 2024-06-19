@@ -14,7 +14,7 @@ pub struct Document {
     pub url: String,
     pub content: Vec<String>,
     pub description: String,
-    images: Vec<Vec<u8>>,
+    images: Vec<String>, 
     links: Vec<String>,
     pub title: String,
 }
@@ -171,7 +171,7 @@ fn parse_crawl_result(crawl_result: CrawlResult) -> Result<Document, String> {
 
     //non-metadata entries
     let mut content: Vec<String> = Vec::new();
-    let mut images: Vec<Vec<u8>> = Vec::new();
+    let mut images: Vec<String> = Vec::new();
     let mut title                = String::new(); 
     let document = Html::parse_document(&body);
         
@@ -295,19 +295,24 @@ fn parse_crawl_result(crawl_result: CrawlResult) -> Result<Document, String> {
 
        
     // Working with images: need to convert string stored in the src attribute of the img tag as a U8 vector (vector of integer bytes), this can
-    // then be converted back to URI format which allows us to display the images in the search engine. 
+    // then be converted back to base64 format which allows us to display the images in the search interface.
+    // Currently, we assume the logo is at the root of the DOM tree - and will be the first image
+    // processed by the selector.
+   
+    // TO DO: may need to modify to extract the MIME type string to decode the image.
 
     for element in document.select(&image_selector) {
-        if let Some(src) = element.value().attr("src") {
-            images.push(src.as_bytes().to_vec());
+        if images.len() > 3 {
+            break
         }
-        else {
-            println!("Image not found");
+        match element.value().attr("src") {
+            Some(src) => images.push(String::from(src)),
+            None => ()
         }
     }
 
     if url.is_empty() || body.is_empty() || title.is_empty() || content.is_empty() {
-        return Err("Skip".to_string());
+        return Err(String::from("Skip"));
     }
 
     let new_document = Document {
@@ -320,7 +325,6 @@ fn parse_crawl_result(crawl_result: CrawlResult) -> Result<Document, String> {
     };
 
     Ok(new_document)
-
 }
     
 
