@@ -4,8 +4,10 @@ use rocket::response::{Responder, Result};
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::serde::json::Json;
 use rocket::{get, post, options, launch};
+use serde::{Deserialize, Serialize};
 use crate::services::{fill_indices, get_search_results};
 use crate::parser::Document;
+use crate::auth::{authenticate, Credentials, SearchHistory};
 
 // Corrected OPTIONS handler
 #[options("/<_..>")]
@@ -62,6 +64,60 @@ pub fn get_results(query: String) -> SearchResult {
     }
 }
 
+
+
+
+// TO DO: specify to return (i) unspecified error (for now) (ii) user does not exist (iii)
+// successful login with included user session object (also will include search history)
+pub enum AuthResult {
+    Error(Json<String>),   // Unspecified error case OR user does not exist.
+    // Confirmation object with username & search history (later to be modified with a session token).
+}
+
+impl<'r> Responder<'r, 'static> for AuthResult {
+    fn respond_to(self, request: &'r Request<'_>) -> Result<'static> {
+        match self {
+            AuthResult::Error(err) => Response::build_from(err.respond_to(request)?)
+                .status(Status::InternalServerError)
+                .ok(),
+        }
+    }
+}
+
+#[post("/login", data="<credentials>")]
+pub fn login(credentials: Json<Credentials>) -> AuthResult {
+    // Make call to internal login services outsourced by auth.rs
+    println!("{:?}", credentials.username);
+    println!("{:?}", credentials.password);
+    let _ = authenticate(&credentials);
+    return AuthResult::Error(Json(String::from("Authentication not yet implemented.")));
+}
+
+#[post("/register", data="<credentials>")]
+pub fn register(credentials: Json<Credentials>) -> AuthResult {
+    // Make call to internal register services outsourced by auth.rs
+    println!("{:?}", credentials.username);
+    println!("{:?}", credentials.password);
+    return AuthResult::Error(Json(String::from("Registration not yet implemented.")));
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct SearchHistoryResponse {
+    search_histories: Vec<SearchHistory>,
+    username: String
+}
+
+#[post("/add-history", data="<history>")]
+pub fn add_history(history: Json<SearchHistoryResponse>) -> AuthResult {
+    println!("{:?}", history);
+    return AuthResult::Error(Json(String::from("History not yet implemented.")));
+}
+
+
+// TO DO: Registration servicing.
+
+//pub enum RegistrationResult 
+
 // CORS Fairing
 pub struct CORS;
 
@@ -88,6 +144,7 @@ pub fn rocket() -> _ {
         .configure(rocket::Config::figment().merge(("port", 9797))) 
         .attach(CORS)
         .mount("/search", routes![fill, get_results, options])
+        .mount("/auth", routes![login, register, add_history, options])
 }
 
 

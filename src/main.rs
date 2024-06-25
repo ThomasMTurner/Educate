@@ -7,6 +7,7 @@ mod rank;
 mod parser;
 mod index;
 mod discover;
+mod auth;
 
 use crate::api::rocket;
 

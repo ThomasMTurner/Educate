@@ -25,4 +25,5 @@ linfa-reduction = "0.7.0"
 rocket = { version = "0.5.0", features = ["json"] } 
 fs = "0.0.5"
 itertools = "0.10.5"
+redis = "0.23.0"
 

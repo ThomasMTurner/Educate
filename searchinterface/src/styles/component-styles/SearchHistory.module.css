@@ -1,0 +1,17 @@
+.searchHistoryContainer:hover {
+    background-color: blue;
+    color: white;
+    cursor: pointer;
+}
+
+.searchHistoryContainer {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    font-family: helvetica;
+    font-weight: 200;
+    font-size: 0.7rem;
+    border-radius: 0.2rem;
+    width:100%;
+    padding:0.1rem;
+}

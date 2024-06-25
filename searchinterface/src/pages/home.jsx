@@ -1,18 +1,23 @@
 import styles from '../styles/page.module.css';
 import SearchBar from '../components/SearchBar';
 import { IoIosSettings } from "react-icons/io";
+import { CgProfile } from "react-icons/cg";
 import { FaHistory } from "react-icons/fa";
 import { useState, useEffect } from 'react';
+import { useAuth } from '../AuthProvider';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ClipLoader from 'react-spinners/ClipLoader';
 import axios from 'axios';
 import SearchResult from '../components/SearchResult';
+import SearchHistory from '../components/SearchHistory';
+import Select from 'react-select';
 
 // Overriding the default timeout to 5 minutes while we speedup the search request.
 axios.defaults.timeout = 500000;
 
 const Home = () => {
-  const [iconColours, setIconColours] = useState({"Settings": "gray", "History": "gray"})
+  const [iconColours, setIconColours] = useState({"Settings": "gray", "History": "gray", "Profile": "gray"})
   const [resultsScreen, setResultsScreen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [search, setSearch] = useState(false)
@@ -20,9 +25,28 @@ const Home = () => {
   //const [summaries, setSummaries] = useState({})
   const [loadingResults, setLoadingResults] = useState(false)
   const [searchBarOffset, setSearchBarOffset] = useState(12);
+  const [historyVisible, setHistoryVisible] = useState(false);
+  
+  const { user, token, loginAction, logOut, registerAction, history } = useAuth();
+  
+  const username = "Mycerinus";
+  
+  const navigate = useNavigate();
  
   const setIconColour = (iconName, colour) => {
     setIconColours(prev => ({...prev, [iconName]: colour}));
+  }
+
+  const handleAuthNavigate = () => {
+    navigate('/login');
+  }
+
+  const handleHistoryNavigate = () => {
+    navigate('/history');
+  }
+
+  const handleSettingsNavigate = () => {
+    navigate('/settings');
   }
 
   useEffect(() => {
@@ -52,14 +76,22 @@ const Home = () => {
 
                     // Call to rank existing indices based on search query.
                     const response = await axios.post('http://localhost:9797/search/get-results', data)
-                
-                    // setSearchResults(indexedResults)
+
                     setSearchResults(response.data)
+                    
+                    // Modify to reference user.
+                    if (username != null) {
+                        try {
+                            console.log("Testing history accumulation endpoint...")
+                            const result = response.data.map(({ url, title }) => ({ url, title, date: new Date().toLocaleString()}));
+                            const accumulation_response = await axios.post('http://localhost:9797/auth/add-history', {search_histories: result, username: username})
+                        } catch (error) {
+                            console.error(error)
+                        }
+                    }
+
                     setLoadingResults(false)
                     setSearchBarOffset(0)
-
-                    console.log(searchResults)
-                    console.log(loadingResults)
 
                     // Call to summarise each search result
                     /* 
@@ -87,8 +119,6 @@ const Home = () => {
             }
 
     }, [search])
-    
-
 
     return (
     (!resultsScreen) ? (
@@ -101,8 +131,34 @@ const Home = () => {
             >
                 <h1 style={{fontFamily: 'helvetica', fontWeight: '100'}}> Welcome to <b style={{fontWeight: 'bold'}}>Educate Search.</b></h1> 
                 <div style={{display: 'flex', position: "relative", gap: '1rem'}}>
-                    <IoIosSettings size={25} color={iconColours.Settings} onMouseEnter={() => setIconColour("Settings", "black")} onMouseLeave={() => setIconColour("Settings", "gray")} />
-                    <FaHistory size={25} color={iconColours.History} onMouseEnter={() => setIconColour("History", "black")} onMouseLeave={() => setIconColour("History", "gray")}/>
+                    <IoIosSettings size={25} onClick={handleSettingsNavigate}  color={iconColours.Settings} onMouseEnter={() => setIconColour("Settings", "black")} onMouseLeave={() => setIconColour("Settings", "gray")} />
+                    <div>
+                    <FaHistory size={25} onClick={() => setHistoryVisible(!historyVisible)} color={iconColours.History} onMouseEnter={() => setIconColour("History", "black")} onMouseLeave={() => setIconColour("History", "gray")}/>
+                    {historyVisible && (
+                    <div style={{display: 'flex', color:'black', flexDirection: 'column', gap: '0.05rem', alignItems: 'center', justifyContent: 'center', border: '1px solid rgb(64, 64, 64)', borderRadius: '0.3rem', backgroundColor:'rgb(64, 64, 64)', position: 'relative', top: '0.5rem', zIndex: '1', boxShadow: '0 0.5rem 0.5rem black', padding: '0.5rem'}}>
+                    <p style={{fontWeight: '200', fontSize: '0.6rem'}}> Recent History </p>
+                    {history.map((values, index) => (
+                    <SearchHistory 
+                        key={index}
+                        title={values[0]} 
+                        url={values[1]} 
+                        date={values[2]}
+                    />
+                    ))}
+                    </div> 
+                    )}
+                    </div>
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '0.05rem', alignItems: 'center', justifyContent: 'center'}}>
+                        <CgProfile size={25} />
+                        <p style={{fontWeight: '200', fontSize: '0.8rem', position:'relative', bottom:'0.2rem'}}> { 
+                        user != null ? (
+                            <button onClick={auth.logOut} className={styles.defaultButton}> Logout </button>
+                        )
+                        : (
+                            <button onClick={handleAuthNavigate} className={styles.defaultButton}> Login or Register </button>
+                        )
+                            } </p>
+                    </div>
                 </div>
             </motion.div>
             <motion.div 
@@ -128,7 +184,7 @@ const Home = () => {
             <div style={{display:'flex', position:'relative', alignItems:'left', justifyContent:'left', textAlign:'left', flexDirection:'column'}}>
             {!(loadingResults) ? (
                 searchResults.map((document, index) => (
-                    <div key={index}>
+                    <div onClick={() => window.open(document.url, '_blank')} key={index}>
                         <SearchResult document={document} />
                     </div>
             ))

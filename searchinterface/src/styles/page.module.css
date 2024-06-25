@@ -6,4 +6,13 @@
     height: 100vh; /* Ensures the main container takes up full height */
 }
 
+.defaultButton {
+    border: none;
+    background: none;
+    padding: 0;
+}
 
+.defaultButton:hover {
+    cursor: pointer;
+    text-decoration: underline;
+}

@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import './App.css';
-import Home from './pages/home.jsx';
-import History from './pages/history.jsx'; 
-import { SearchCache } from './SearchCache';
+import Home from './pages/home';
+import History from './pages/history'; 
+import Settings from './pages/settings';
+import Auth from './pages/authpage'
+import AuthProvider from './AuthProvider'
 
 function App() {
-    const [searches, setSearches] = useState([]);
-    
     return (
-        <SearchCache.Provider value={{ searches, setSearches }}>
-            <Router>
+        <Router>
+            <AuthProvider>
                 <Routes>
                     <Route path="/" element={<Home />} />
-                    <Route path="/history" element={<History searches={searches} />} />
+                    <Route path="/login" element={<Auth/>}/>
+                    <Route path="/history" element={<History/>} />
+                    <Route path="/settings" element={<Settings/>} />
                 </Routes>
-            </Router>
-        </SearchCache.Provider>
+            </AuthProvider>
+        </Router>
     );
 }
 

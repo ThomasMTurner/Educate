@@ -1,9 +1,19 @@
-export default function History({searches}) {
+import { useAuth } from '../AuthProvider';
+import SearchHistory from '../components/SearchHistory';
+
+
+const history = () => {
+    const { history } = useAuth();
+
+    // TO DO: map history object (should be id: [title, date])
+    // to individual SearchHistory components.
+
     return (
         <div>
-            {searches.map((search, index) => (
-                <p key={index}>{search}</p>
-            ))}
+            <p> Welcome to the history page. </p>
         </div>
     )
 }
+
+
+export default history;
