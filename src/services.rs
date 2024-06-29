@@ -7,6 +7,7 @@
     use crate::discover::get_domains_and_webpages;
     use crate::parser::{parse_crawl_results, Document};
     use crate::crawl::{get_crawled, CrawlResult};
+    use serde::{Serialize, Deserialize};
     
     // Fill indices on application startup with crawl bot results (or use cached instead - later
     // modification).
@@ -73,16 +74,26 @@
         }
     }
 
-    pub fn get_search_results(query: String) -> Result<Vec<Document>, String> {
+    pub fn get_search_results(query: String) -> Result<DocumentResult, String> {
         let index_map = match read_index_file("./indices/dterm.json") {
             Ok(Indexer::TermIndex(map)) => map,
             Ok(Indexer::InvertedIndex(_)) => return Err(String::from('2')),
             Err(_) => return Err(String::from('2'))
         };
 
-        println!("Indices loaded");
+        let num_indexed = index_map.len();
+
+        println!("{:?} indexed results loaded", num_indexed);
 
         let results: Vec<Document> = get_ranked_documents(query, Indexer::TermIndex(index_map))?;
-        Ok(results)
+        Ok(DocumentResult{results, indexed: num_indexed})
     }
- 
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DocumentResult {
+    pub results: Vec<Document>,
+    pub indexed: usize
+}
+
+
+

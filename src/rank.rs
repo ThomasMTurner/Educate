@@ -70,16 +70,6 @@
     // place in Result type output.
 
     fn get_average_vector (features: Vec<Vec<f32>>) -> Vec<f32> {
-        /*
-        * Non-fold implementation.
-        let mut acc: Array1<f32> = Array1::zeros(300);
-        for f in &features {
-            let arr = Array1::from_vec(f.to_vec());
-            acc = &acc + &arr;
-        }
-        */
-        
-        // Fold implementation
         let acc: Array1<f32> = features.iter().fold(Array1::zeros(300), |acc ,f| {
             Array1::from_vec(f.to_vec()) + Array1::from_vec(acc.to_vec())
         });
@@ -121,9 +111,6 @@
         }
 
         match value {
-            // WARNING:
-            // Currently defaulting to an empty vector if embedding is not found
-            // Hopefully this will return an empty output, but test to be certain.
             Value::Array(embeddings) => Ok(embeddings.into_iter().map(|embedding| embedding.as_array().unwrap_or(&Vec::new()).into_iter()
                 .map(|num| num.as_f64().unwrap() as f32).collect()).collect()),
             Value::Number(error) if error.is_i64() => {
@@ -224,7 +211,6 @@
                 let cluster_embeddings: Vec<Vec<f32>> = serde_json::from_value(cluster_arr[1].clone()).unwrap_or(Vec::new());
                 let centroid_out: Vec<f32> = serde_json::from_value(cluster_arr[0].clone()).unwrap_or(Vec::new());
                 let mut documents_for_cluster = Vec::new();
-                // Possibly inefficient way to map embeddings documents back to their container struct?
                 for embedded_document in &embeddings {
                     for embedding in &cluster_embeddings {
                         if *embedding == embedded_document.embedding {
@@ -297,22 +283,21 @@
             }
         }
 
-        println!("Terms collected - now embedding documents");
+        println!("Terms collected.");
 
         let embeddings = embed_documents(document_terms, 2)?;
 
-        println!("Embedding for documents complete");
+        println!("Embedding for documents complete.");
     
         let clusters: Vec<Cluster>;
 
-        println!("Generating clusters");
 
         match generate_clusters(embeddings.clone()) {
             Ok(clusters_out) => clusters = clusters_out,
             Err(_) => return Err(String::from("4"))
         }
 
-        println!("Clusters generated");
+        println!("Generated clusters.");
 
         // Embed the query for similarity comparison with cluster centroids.
         // Split the query into multiple terms - then normalise these outputs and average them.

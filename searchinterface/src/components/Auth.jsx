@@ -11,7 +11,7 @@ export const Register = () => {
 }
 
 const Login = () => {
-    const [input, setInput] = useState({ username: "", password: "" })
+    const [input, setInput] = useState({ username: "", password: "", history: []})
     const [valid, setValid] = useState({ "username": true, "password": true })
     const auth = useAuth();
     

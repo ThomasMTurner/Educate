@@ -1,13 +1,13 @@
+extern crate redis;
 use rocket::http::{Header, Status};
 use rocket::{Request, Response, routes};
 use rocket::response::{Responder, Result};
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::serde::json::Json;
 use rocket::{get, post, options, launch};
-use serde::{Deserialize, Serialize};
-use crate::services::{fill_indices, get_search_results};
-use crate::parser::Document;
-use crate::auth::{authenticate, Credentials, SearchHistory};
+use crate::services::{fill_indices, get_search_results, DocumentResult};
+//use crate::parser::Document;
+use crate::auth::{authenticate, Credentials, SearchHistoryResponse, make_registration, update_history};
 
 // Corrected OPTIONS handler
 #[options("/<_..>")]
@@ -25,7 +25,7 @@ async fn fill() {
 }
 
 pub enum SearchResult {
-    Documents(Json<Vec<Document>>),
+    Documents(Json<DocumentResult>),
     Error(Json<String>)
 }
 
@@ -44,7 +44,6 @@ impl<'r> Responder<'r, 'static> for SearchResult {
 }
 
 
-// Corrected POST route
 #[post("/get-results", data = "<query>")]
 pub fn get_results(query: String) -> SearchResult {
     match get_search_results(query) {
@@ -53,25 +52,25 @@ pub fn get_results(query: String) -> SearchResult {
             match e.as_str() {
                 "-2" => SearchResult::Error(Json(String::from("Unspecified error"))),
                 "-1" => SearchResult::Error(Json(String::from("No terms could be found in model vocabulary"))),
-                "1" => SearchResult::Error(Json(String::from("No results"))),
-                "2" => SearchResult::Error(Json(String::from("Error processing query"))),
-                "3" => SearchResult::Error(Json(String::from("Indexing error"))),
-                "4" => SearchResult::Error(Json(String::from("Issue with embedding script"))),
-                "5" => SearchResult::Error(Json(String::from("Issue with clustering script"))),
-                _ => SearchResult::Error(Json(String::from("Unknown error")))
+                "1"  => SearchResult::Error(Json(String::from("No results"))),
+                "2"  => SearchResult::Error(Json(String::from("Error processing query"))),
+                "3"  => SearchResult::Error(Json(String::from("Indexing error"))),
+                "4"  => SearchResult::Error(Json(String::from("Issue with embedding script"))),
+                "5"  => SearchResult::Error(Json(String::from("Issue with clustering script"))),
+                 _   => SearchResult::Error(Json(String::from("Unknown error")))
             }
         }
     }
 }
 
 
-
-
 // TO DO: specify to return (i) unspecified error (for now) (ii) user does not exist (iii)
 // successful login with included user session object (also will include search history)
 pub enum AuthResult {
     Error(Json<String>),   // Unspecified error case OR user does not exist.
-    // Confirmation object with username & search history (later to be modified with a session token).
+    LoginConfirm(Json<SearchHistoryResponse>), // Confirmation object for login with username & search history (later to be modified with a session token).
+    RegisterConfirm(Json<()>),
+    UpdateConfirm(Json<()>)
 }
 
 impl<'r> Responder<'r, 'static> for AuthResult {
@@ -80,43 +79,48 @@ impl<'r> Responder<'r, 'static> for AuthResult {
             AuthResult::Error(err) => Response::build_from(err.respond_to(request)?)
                 .status(Status::InternalServerError)
                 .ok(),
+            AuthResult::LoginConfirm(conf) => Response::build_from(conf.respond_to(request)?)
+                .status(Status::Ok)
+                .ok(),
+            AuthResult::RegisterConfirm(conf) => Response::build_from(conf.respond_to(request)?)
+                .status(Status::Ok)
+                .ok(),
+            AuthResult::UpdateConfirm(conf) => Response::build_from(conf.respond_to(request)?)
+                .status(Status::Ok)
+                .ok(),
         }
     }
 }
 
 #[post("/login", data="<credentials>")]
 pub fn login(credentials: Json<Credentials>) -> AuthResult {
-    // Make call to internal login services outsourced by auth.rs
-    println!("{:?}", credentials.username);
-    println!("{:?}", credentials.password);
-    let _ = authenticate(&credentials);
-    return AuthResult::Error(Json(String::from("Authentication not yet implemented.")));
+    match authenticate(&credentials) {
+        Ok(response) => {
+            return AuthResult::LoginConfirm(Json(response))
+        }
+        Err(e) => return AuthResult::Error(Json(e.to_string()))
+    }
 }
 
 #[post("/register", data="<credentials>")]
 pub fn register(credentials: Json<Credentials>) -> AuthResult {
-    // Make call to internal register services outsourced by auth.rs
-    println!("{:?}", credentials.username);
-    println!("{:?}", credentials.password);
-    return AuthResult::Error(Json(String::from("Registration not yet implemented.")));
+    match make_registration(&credentials) {
+        Ok(response) => return AuthResult::RegisterConfirm(Json(response)),
+        Err(e) => {
+            println!("{:?}", e.to_string());
+            return AuthResult::Error(Json(e.to_string()))
+        }
+    }
 }
 
-#[derive(Deserialize, Debug, Serialize)]
-pub struct SearchHistoryResponse {
-    search_histories: Vec<SearchHistory>,
-    username: String
+// TO DO: IMPLEMENT WITH REDIS SETTING VALUES.
+#[post("/add-history", data="<credentials>")]
+pub fn add_history(credentials: Json<Credentials>) -> AuthResult {
+    match update_history(&credentials) {
+        Ok(response) => return AuthResult::UpdateConfirm(Json(response)),
+        Err(e) => return AuthResult::Error(Json(e.to_string()))
+    }
 }
-
-#[post("/add-history", data="<history>")]
-pub fn add_history(history: Json<SearchHistoryResponse>) -> AuthResult {
-    println!("{:?}", history);
-    return AuthResult::Error(Json(String::from("History not yet implemented.")));
-}
-
-
-// TO DO: Registration servicing.
-
-//pub enum RegistrationResult 
 
 // CORS Fairing
 pub struct CORS;

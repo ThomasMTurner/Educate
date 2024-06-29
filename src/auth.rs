@@ -2,13 +2,21 @@ extern crate redis;
 use redis::{Commands, RedisResult, RedisError, FromRedisValue, ToRedisArgs};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
-use serde_json::json;
+use serde_json::{json, Value};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SearchHistory {
     pub url: String,
     pub title: String,
-    pub date: String
+    pub date: String,
+    pub query: String
+}
+
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct SearchHistoryResponse {
+    search_histories: Vec<SearchHistory>,
+    username: String
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -71,25 +79,27 @@ fn get_credentials(con: &mut redis::Connection, username: &str) -> RedisResult<C
 }
 
 
-// May pass the entire String object - assuming string slices.
-pub fn authenticate(cred: &Credentials) -> redis::RedisResult<()> {
+// May pass the entire String object - assuming string slices (Result<(), RedisError>).
+pub fn authenticate(cred: &Credentials) -> RedisResult<SearchHistoryResponse> {
     // Assuming the user has spawned & configured a Redis instance.
     let client = redis::Client::open("redis://127.0.0.1/")?;
     let mut con = client.get_connection()?;
     
     let result = get_credentials(&mut con, &cred.username)?;
+
     if &cred.password != result.password.as_str() {
         println!("Invalid password!");
-        // Modify to return Error.
-        return Ok(())
+        // Modify based on available redis Error Kinds.
+        Err(RedisError::from((redis::ErrorKind::TypeError, "Invalid password.")))
     }
 
     else {
         println!("Logged in!");
-        println!("History: {:?}", result.history);
-        println!("User: {:?}", result.username);
-        println!("Password: {:?}", result.password);
-        Ok(())
+        println!("Obtained search history: {:?}", result.history);
+        Ok(SearchHistoryResponse {
+            search_histories: result.history,
+            username: result.username
+        })
     }
 
 }
@@ -97,11 +107,26 @@ pub fn authenticate(cred: &Credentials) -> redis::RedisResult<()> {
 
 // TO DO: needs implementing (CONSIDER PASSING THE CLIENT INSTANCE RATHER THAN CREATING NEW
 // INSTANCES FOR EACH LOGIN & REGISTRATION REQUEST)
-pub fn _make_registration(cred: &Credentials) -> redis::RedisResult<()> {
+pub fn make_registration(cred: &Credentials) -> RedisResult<()> {
     let client = redis::Client::open("redis://127.0.0.1/")?;
     let mut con = client.get_connection()?;
     save_credentials(&mut con, cred)?;
-    println!("Saved credentials: {:?}", cred);
     Ok(())
 }
 
+pub fn update_history(cred: &Credentials) -> RedisResult<()> {
+    let client = redis::Client::open("redis://127.0.0.1/")?;
+    let mut con = client.get_connection()?;
+    let curr: Option<String> = con.hget(&cred.redis_key(), "history")?;
+    let mut curr_history: Value = match curr {
+        Some(h) => serde_json::from_str(&h).unwrap_or(Value::Array(Vec::new())),
+        None => Value::Array(Vec::new())
+    };
+
+    if let Value::Array(ref mut arr) = curr_history {
+        arr.extend(cred.history.iter().map(|h| json!(h)));
+    }
+
+    con.hset(cred.redis_key(), "history", curr_history.to_string())?;
+    Ok(())
+}
