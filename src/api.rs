@@ -6,8 +6,12 @@ use rocket::fairing::{Fairing, Info, Kind};
 use rocket::serde::json::Json;
 use rocket::{get, post, options, launch};
 use crate::services::{fill_indices, get_search_results, DocumentResult};
+//use serde_json::{Value, json};
 //use crate::parser::Document;
 use crate::auth::{authenticate, Credentials, SearchHistoryResponse, make_registration, update_history};
+use crate::config::Config;
+use crate::meta::*;
+
 
 // Corrected OPTIONS handler
 #[options("/<_..>")]
@@ -15,8 +19,7 @@ fn options() -> &'static str {
     "OK"
 }
 
-// TO DO: 
-// Modify later for configs a third argument to fill_indices to restrict the index types to fill.
+// TO DO: enable setting by input search modification (hence be POST request).
 #[get("/fill")]
 async fn fill() {
     let crawl_depth: u8 = 1;
@@ -122,7 +125,53 @@ pub fn add_history(credentials: Json<Credentials>) -> AuthResult {
     }
 }
 
-// CORS Fairing
+pub enum ConfigResult {
+    WriteError(Json<String>),
+    WriteSuccess(Json<()>),
+    ReadError(Json<String>),
+    ReadSuccess(Json<Config>)
+}
+
+impl<'r> Responder<'r, 'static> for ConfigResult {
+    fn respond_to(self, request: &'r Request<'_>) -> Result<'static> {
+        match self {
+            ConfigResult::WriteError(err) => Response::build_from(err.respond_to(request)?)
+                .status(Status::InternalServerError)
+                .ok(),
+            ConfigResult::WriteSuccess(conf) => Response::build_from(conf.respond_to(request)?)
+                .status(Status::Ok)
+                .ok(),
+            ConfigResult::ReadSuccess(conf) => Response::build_from(conf.respond_to(request)?)
+                .status(Status::Ok)
+                .ok(),
+            ConfigResult::ReadError(conf) => Response::build_from(conf.respond_to(request)?)
+                .status(Status::InternalServerError)
+                .ok(),
+        }
+    }
+}
+
+
+#[post("/write", data="<config>")]
+pub fn write(config: Json<Config>) -> ConfigResult {
+    let config: Config = config.into_inner();
+    match config.write() {
+        Ok(()) => return ConfigResult::WriteSuccess(Json(())),
+        Err(e) => return ConfigResult::WriteError(Json(e.to_string())),
+    }
+}
+
+
+#[post("/read", data="<config>")]
+pub fn read(config: Json<Config>) -> ConfigResult {
+    let mut config: Config = config.into_inner();
+    match config.read() {
+        Ok(()) => return ConfigResult::ReadSuccess(Json(config)),
+        Err(e) => return ConfigResult::ReadError(Json(e.to_string())),
+    }
+}
+
+
 pub struct CORS;
 
 #[rocket::async_trait]
@@ -149,6 +198,7 @@ pub fn rocket() -> _ {
         .attach(CORS)
         .mount("/search", routes![fill, get_results, options])
         .mount("/auth", routes![login, register, add_history, options])
+        .mount("/config", routes![write, read, options])
 }
 
 

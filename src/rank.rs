@@ -19,8 +19,9 @@
     use serde_json::Value;
     use serde::{Serialize, Deserialize};
     use ndarray::Array1;
+    extern crate redis;
+    use redis::Commands;
     // use serde_json::json;
-    
     // IMPLEMENTED:
     // EmbeddedDocument - intermediate placeholder for documents & their averaged embedding.
     // Cluster - intermediate map for documents & corresponding centroid.
@@ -140,7 +141,10 @@
             }
             
             let local_embeddings: Vec<Vec<f32>>;
-
+            
+            // TO DO: make use of PCA here also for dimensionality reduction. Currently
+            // just clipping the values.
+            // Should be in the form: terms[0..num_terms as usize] -> reduce(terms, size)
             match make_embeddings(terms[0..num_terms as usize].to_vec()) {
                 Ok(embeddings) => local_embeddings = embeddings,
                 Err(_) => {
@@ -267,7 +271,7 @@
 
         pca.predict(&query_embedding).iter().map(|&x| x as f32).collect()
     }
-    
+        
     
     pub fn get_ranked_documents (query: String, index: Indexer) -> Result<Vec<Document>, String> {
         let document_terms;

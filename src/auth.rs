@@ -94,8 +94,6 @@ pub fn authenticate(cred: &Credentials) -> RedisResult<SearchHistoryResponse> {
     }
 
     else {
-        println!("Logged in!");
-        println!("Obtained search history: {:?}", result.history);
         Ok(SearchHistoryResponse {
             search_histories: result.history,
             username: result.username

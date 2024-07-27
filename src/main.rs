@@ -8,6 +8,8 @@ mod parser;
 mod index;
 mod discover;
 mod auth;
+mod config;
+mod meta;
 
 use crate::api::rocket;
 
