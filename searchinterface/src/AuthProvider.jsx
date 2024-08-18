@@ -1,5 +1,6 @@
-import { useContext, createContext, useState } from "react";
+import { useContext, createContext, useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
+import { readConfig } from './config_utilities';
 import axios from 'axios';
 
 const AuthContext = createContext();
@@ -7,6 +8,7 @@ const AuthContext = createContext();
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [history, setHistory] = useState({});
+  const [config, setConfig] = useState({});
   const [token, setToken] = useState(localStorage.getItem("site") || "");
   const navigate = useNavigate();
 
@@ -15,17 +17,39 @@ const AuthProvider = ({ children }) => {
     const response = await axios.post("http://localhost:9797/auth/login", data);
 
     if (response.data) {
-      console.log("Received: ", response.data)
-      console.log("Setting username", response.data.username);
-      console.log("Setting search history", response.data.search_histories);
       setUser(response.data.username);
       setHistory(response.data.search_histories);
       //setToken(response.data.token);
       //localStorage.setItem("site", response.data.token);
       navigate("/")
-    } else {
-      throw new Error("No data received from server");
-    }
+      try {
+          const conf_data = {
+             user: {
+                username: response.data.username != null ? response.data.username : '',
+                password: '',
+                history: response.data.search_histories
+             },
+             redis_connection_str: '',
+             search_params: {
+                crawl_depth: 1,
+                number_of_seeds: 32,
+                search_method: 0,
+                browsers: {
+                    'ddg': true,
+                    'google': false
+                },
+                index_type: 0,
+                q: ''
+             }
+          }
+
+         await readConfig(conf_data, setConfig)
+
+    
+      } catch (error) {
+            throw new Error("No data received for configuration read");
+        }
+    } 
     } catch (error) {
     console.error("Error during login:", error);
 
@@ -83,22 +107,26 @@ const AuthProvider = ({ children }) => {
       console.error("Error setting up the request:", error.message);
     }
     } 
-
   }
 
   const logOut = () => {
     setUser(null);
+    setConfig({});
+    setHistory({});
     setToken("");
     localStorage.removeItem("site");
     window.location.href="/login";
   };
+    
+  useEffect(() => {
+    console.log('Config updated to: ', config);
+  }, [config])
 
   return (
-    <AuthContext.Provider value={{ token, user, loginAction, logOut, registerAction, history }}>
+    <AuthContext.Provider value={{ token, user, loginAction, logOut, registerAction, history, config }}>
       {children}
     </AuthContext.Provider>
   );
-
 };
 
 export default AuthProvider;

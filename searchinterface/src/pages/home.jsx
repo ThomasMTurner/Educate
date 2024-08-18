@@ -10,10 +10,16 @@ import { motion } from 'framer-motion';
 import ClipLoader from 'react-spinners/ClipLoader';
 import axios from 'axios';
 import SearchResult from '../components/SearchResult';
-import SearchHistory from '../components/SearchHistory';
+//import SearchHistory from '../components/SearchHistory';
 
 // Overriding the default timeout to 5 minutes while we speedup the search request.
 axios.defaults.timeout = 500000;
+
+function convertMsToTime(ms) {
+    let seconds = Math.floor((ms / 1000) % 60);
+    let minutes = Math.floor(ms / 60000);
+    return `${minutes} minutes; ${seconds} seconds`
+}
 
 const Home = () => {
   const [iconColours, setIconColours] = useState({"Settings": "gray", "History": "gray", "Profile": "gray"})
@@ -24,10 +30,10 @@ const Home = () => {
   // const [summaries, setSummaries] = useState({})
   const [loadingResults, setLoadingResults] = useState(false)
   const [searchBarOffset, setSearchBarOffset] = useState(12);
-  const [historyVisible, setHistoryVisible] = useState(false);
+  //const [historyVisible, setHistoryVisible] = useState(false);
   const [performance, setPerformance] = useState({"Indexed": null, "Ranked": null, "Time": null})
   
-  const { user, logOut, history } = useAuth();
+  const { user, logOut, config } = useAuth();
   
   const navigate = useNavigate();
  
@@ -48,8 +54,11 @@ const Home = () => {
   }
 
   useEffect(() => {
-        if (search) {
+        if (search && config) {
             const handleSearch = async () => {
+                // Begin performance timer.
+                const start = window.performance.now()
+                console.log("Starting search at: ", start)
 
                 // Trigger search bar animation.
                 setResultsScreen(true)
@@ -57,9 +66,15 @@ const Home = () => {
                 // Trigger loading animation - reset to true.
                 setLoadingResults(true)
 
-                const data = {
-                    query: searchQuery
-                }
+                const updatedConfig = {
+                    ...config,
+                    search_params: {
+                        ...config.search_params, // Spread the existing search_params
+                        q: searchQuery // Update the nested q key
+                    }
+}               ;
+
+                console.log("Obtained new search configuration: ", updatedConfig)
                 
                 // Call to fill indices with new documents.
                 await axios.get("http://localhost:9797/search/fill")
@@ -75,13 +90,19 @@ const Home = () => {
                 try {
 
                     // Call to rank existing indices based on search query.
-                    const response = await axios.post('http://localhost:9797/search/get-results', data)
+                    // TO DO: need to send a Config object here. Consider using the AuthProvider
+                    // context to extract the current Config object.
+                    console.log('Utilising the updated search configuration:', updatedConfig)
+                    const response = await axios.post('http://localhost:9797/search/get-results', updatedConfig)
+                    
+                    const duration = window.performance.now() - start
+                    console.log("Search took: ", duration, "ms")
 
                     setSearchResults(response.data.results)
                     results.push(...response.data.results)
 
                     // TO DO: set performance indicators (number indexed, number ranked, time taken).
-                    setPerformance({"Indexed": response.data.indexed, "Ranked": response.data.results.length, "Time": "10 minutes"}) 
+                    setPerformance({"Indexed": response.data.indexed, "Ranked": response.data.results.length, "Time": convertMsToTime(duration)}) 
 
                     setLoadingResults(false)
                     setSearchBarOffset(0)

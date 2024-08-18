@@ -4,6 +4,8 @@ use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use serde_json::{json, Value};
 
+
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SearchHistory {
     pub url: String,
@@ -12,12 +14,12 @@ pub struct SearchHistory {
     pub query: String
 }
 
-
 #[derive(Deserialize, Debug, Serialize)]
 pub struct SearchHistoryResponse {
     search_histories: Vec<SearchHistory>,
     username: String
 }
+
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Credentials {

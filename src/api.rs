@@ -5,13 +5,12 @@ use rocket::response::{Responder, Result};
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::serde::json::Json;
 use rocket::{get, post, options, launch};
-use crate::services::{fill_indices, get_search_results, DocumentResult};
+use crate::services::{fill_indices, get_search_results};
 //use serde_json::{Value, json};
 //use crate::parser::Document;
 use crate::auth::{authenticate, Credentials, SearchHistoryResponse, make_registration, update_history};
 use crate::config::Config;
-use crate::meta::*;
-
+use crate::meta::{aggregate, MetaSearchRequest, SearchResult};
 
 // Corrected OPTIONS handler
 #[options("/<_..>")]
@@ -19,17 +18,12 @@ fn options() -> &'static str {
     "OK"
 }
 
-// TO DO: enable setting by input search modification (hence be POST request).
+// TO DO: enable setting values by config.
 #[get("/fill")]
 async fn fill() {
     let crawl_depth: u8 = 1;
     let seed_count: u8  = 30;
     fill_indices(crawl_depth, seed_count).await;
-}
-
-pub enum SearchResult {
-    Documents(Json<DocumentResult>),
-    Error(Json<String>)
 }
 
 
@@ -47,10 +41,36 @@ impl<'r> Responder<'r, 'static> for SearchResult {
 }
 
 
-#[post("/get-results", data = "<query>")]
-pub fn get_results(query: String) -> SearchResult {
-    match get_search_results(query) {
-        Ok(results) => SearchResult::Documents(Json(results)),
+// TO DO: enable setting values by config.
+#[post("/get-results", data = "<config>")]
+pub async fn get_results(config: Json<Config>) -> SearchResult {
+    let config: Config = config.into_inner();
+    let search_params = config.search_params;
+    let q = search_params.q;
+    let browsers = search_params.browsers;
+
+    println!("Obtained search query: {:?}", q);
+    
+    let requests: Vec<MetaSearchRequest> = browsers.into_iter()
+    .filter_map(|(k, v)| if v { Some(MetaSearchRequest::new(k, q.clone())) } else { None })
+    .collect();
+
+    println!("Obtained search requests: {:?}", requests);
+    
+    let mut responses = Vec::new();
+
+    if let Ok(res) = aggregate(requests).await {
+       responses.extend(res);
+    } else {
+        return SearchResult::Error(Json(String::from("Error with aggregating meta search requests.")))
+    }
+
+    // Obtain raw search results.
+    match get_search_results(q) {
+        Ok(results) => {
+            responses.push(results);
+            return SearchResult::Documents(Json(responses))
+        },
         Err(e) => {
             match e.as_str() {
                 "-2" => SearchResult::Error(Json(String::from("Unspecified error"))),
@@ -154,7 +174,7 @@ impl<'r> Responder<'r, 'static> for ConfigResult {
 
 #[post("/write", data="<config>")]
 pub fn write(config: Json<Config>) -> ConfigResult {
-    let config: Config = config.into_inner();
+    let mut config: Config = config.into_inner();
     match config.write() {
         Ok(()) => return ConfigResult::WriteSuccess(Json(())),
         Err(e) => return ConfigResult::WriteError(Json(e.to_string())),
@@ -165,6 +185,7 @@ pub fn write(config: Json<Config>) -> ConfigResult {
 #[post("/read", data="<config>")]
 pub fn read(config: Json<Config>) -> ConfigResult {
     let mut config: Config = config.into_inner();
+    println!("Config: {:?}", config);
     match config.read() {
         Ok(()) => return ConfigResult::ReadSuccess(Json(config)),
         Err(e) => return ConfigResult::ReadError(Json(e.to_string())),

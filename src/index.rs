@@ -7,6 +7,9 @@ use crate::parser::Document;
 use rayon::prelude::*;
 
 
+
+
+
 //set the location to store indices at local subdirectory "indices"
 const INDEX_DIR: &str = "./indices";
 const DTERM_PATH: &str = "./indices/dterm.json";

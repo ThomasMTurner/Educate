@@ -8,6 +8,7 @@
     use crate::parser::{parse_crawl_results, Document};
     use crate::crawl::{get_crawled, CrawlResult};
     use serde::{Serialize, Deserialize};
+    use crate::meta::SearchResponse;
     
     // Fill indices on application startup with crawl bot results (or use cached instead - later
     // modification).
@@ -74,7 +75,7 @@
         }
     }
 
-    pub fn get_search_results(query: String) -> Result<DocumentResult, String> {
+    pub fn get_search_results(query: String) -> Result<SearchResponse, String> {
         let index_map = match read_index_file("./indices/dterm.json") {
             Ok(Indexer::TermIndex(map)) => map,
             Ok(Indexer::InvertedIndex(_)) => return Err(String::from('2')),
@@ -86,7 +87,7 @@
         println!("{:?} indexed results loaded", num_indexed);
 
         let results: Vec<Document> = get_ranked_documents(query, Indexer::TermIndex(index_map))?;
-        Ok(DocumentResult{results, indexed: num_indexed})
+        Ok(SearchResponse::Search(DocumentResult {results, indexed: num_indexed}))
     }
 
 #[derive(Serialize, Deserialize, Debug)]

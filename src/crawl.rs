@@ -2,6 +2,7 @@ use scraper::{Html, Selector};
 use std::collections::BinaryHeap;
 use reqwest::get;
 
+
 // IMPLEMENTED:
 // Compact representation of each document using the unique URL and how far we have travelled from seed URL's.
 // Using unsigned 32 - allows depth of 2^32 documents, of course no negative depth.
