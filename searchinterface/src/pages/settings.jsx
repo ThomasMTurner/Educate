@@ -1,7 +1,7 @@
 import { SelectConfig, BoxConfig, MultiSelectConfig } from '../components/Config';
-import { useState, useEffect } from 'react';
-import { useAuth } from '../AuthProvider';
+import { useState } from 'react';
 import { writeConfig } from '../config_utilities';
+import { useAuth } from '../AuthProvider';
 
 /* 
 POSSIBLE TO DO: currently the search configuration is only saved on the button press event.
@@ -9,11 +9,12 @@ May wish to enable writing to a swap file or buffer in the event of the applicat
 */
 
 const settings = () => {
-    const { user, config } = useAuth();
     const [searchMethod, setSearchMethod] = useState({"Document Clustering": true, "PageRank": false});
     const [indexType, setIndexType] = useState({"Document-Term": true, "Inverted": false, "B-Tree": false});
     const [altSearchParams, setAltSearchParams] = useState({"Crawl depth": 1, "Number of seed domains": 30});
     const [browsers, setBrowsers] = useState({"Google": true, "DuckDuckGo": false});
+
+    const {config, setConfig} = useAuth();
 
     const indexMap = {
         'Document-Term': 0,
@@ -24,6 +25,13 @@ const settings = () => {
     const searchMethodMap = {
         'Document Clustering': 0,
         'PageRank': 1
+    }
+
+    const configWriter = (updatedSearchParameters) => {
+        let updatedConfig = {...config, search_params: updatedSearchParameters}
+        console.log(updatedConfig);
+        setConfig(updatedConfig);
+        writeConfig(updatedSearchParameters);
     }
 
     const collectSearchParameters = () => {
@@ -39,10 +47,6 @@ const settings = () => {
         return searchParameters
     }
 
-    useEffect(() => {
-        console.log(config)
-    }, [])
-
     return (
         <div style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
             <h1 style={{fontFamily: 'helvetica', fontWeight: '500', fontSize: '2.5rem'}}> Search Settings </h1>
@@ -51,18 +55,8 @@ const settings = () => {
             <BoxConfig title="Search Parameters" state={altSearchParams} setState={setAltSearchParams}/>
             <h1 style={{fontFamily: 'helvetica', fontWeight: '500', fontSize: '2.5rem'}}> Meta-Search Settings </h1>
             <MultiSelectConfig title="Engines" state={browsers} setState={setBrowsers}/>
-            <button onClick={() => writeConfig({'user': user != null ? {
-                username: user,
-                password: '',
-                history: []
-            } : {
-                username: '',
-                password: '',
-                history: []
-            }, 
-                'redis_connection_str': '', 
-                'search_params': collectSearchParameters() 
-            })}> Save </button>
+            <button onClick={() => configWriter(collectSearchParameters())}> 
+                Save </button>
         </div>
    ) 
 }

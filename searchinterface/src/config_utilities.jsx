@@ -1,17 +1,13 @@
 import axios from 'axios';
+import { useAuth } from '.../../AuthProvider';
 
-
-export const writeConfig = async (config) => {
-    try {
-        const response = await axios.post("http://localhost:9797/config/write", config);
-        if (response.data) {
-            console.log("Successfully wrote config: ", config)
-        }
-    } catch (error) {
-        console.error('Obtained error: ', error);
-        throw new Error('Failed to write new config: ', error);
-    }
-  }
+export async function writeConfig (newSearchParameters) {
+    console.log('Writing new config');
+    
+    // Write new config.
+    const response = await axios.post("http://localhost:9797/config/write", config);
+    console.log('Obtained response from config writing: ', response.data);
+}
 
 export const readConfig = async (conf, setConf) => {
     try {
