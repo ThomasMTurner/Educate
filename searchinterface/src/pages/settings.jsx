@@ -9,6 +9,7 @@ May wish to enable writing to a swap file or buffer in the event of the applicat
 */
 
 const settings = () => {
+    const { config, setConfig } = useAuth();
     const [searchMethod, setSearchMethod] = useState({"Document Clustering": true, "PageRank": false});
     const [indexType, setIndexType] = useState({"Document-Term": true, "Inverted": false, "B-Tree": false});
     const [altSearchParams, setAltSearchParams] = useState({"Crawl depth": 1, "Number of seed domains": 30});
@@ -43,7 +44,8 @@ const settings = () => {
             'index_type': indexMap[Object.keys(indexType).find(key => indexType[key])],
             'q': ''
         }
-        console.log('Obtained search parameters', searchParameters)
+        
+        console.log('Obtained new search parameters: ', searchParameters)
         return searchParameters
     }
 
@@ -55,10 +57,12 @@ const settings = () => {
             <BoxConfig title="Search Parameters" state={altSearchParams} setState={setAltSearchParams}/>
             <h1 style={{fontFamily: 'helvetica', fontWeight: '500', fontSize: '2.5rem'}}> Meta-Search Settings </h1>
             <MultiSelectConfig title="Engines" state={browsers} setState={setBrowsers}/>
-            <button onClick={() => configWriter(collectSearchParameters())}> 
-                Save </button>
-        </div>
+            <button onClick={() => writeConfig({
+                ...config, 
+                'search_params': collectSearchParameters() 
+            }, setConfig)}> Save </button>        
    ) 
 }
+
 
 export default settings;

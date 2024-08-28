@@ -9,6 +9,7 @@ const SESSION_STORAGE_KEY = "app_auth_state";
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [history, setHistory] = useState({});
+  const [config, setConfig] = useState({});
   const navigate = useNavigate();
 
   const [config, setConfig] = useState(() => {
@@ -42,7 +43,27 @@ const AuthProvider = ({ children }) => {
       setHistory(response.data.search_histories);
       navigate("/")
       try {
-         await readConfig(config, setConfig)
+          const conf_data = {
+             user: {
+                username: response.data.username != null ? response.data.username : '',
+                password: '',
+                history: response.data.search_histories
+             },
+             redis_connection_str: '',
+             search_params: {
+                crawl_depth: 1,
+                number_of_seeds: 32,
+                search_method: 0,
+                browsers: {
+                    'ddg': true,
+                    'google': false
+                },
+                index_type: 0,
+                q: ''
+             }
+          }
+
+         await readConfig(conf_data, setConfig)
     
       } catch (error) {
             throw new Error("No data received for configuration read");
@@ -114,7 +135,7 @@ const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loginAction, logOut, registerAction, history, config }}>
+    <AuthContext.Provider value={{ user, loginAction, logOut, registerAction, history, config, setConfig}}>
       {children}
     </AuthContext.Provider>
   );
