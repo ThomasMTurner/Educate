@@ -9,7 +9,6 @@ const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [history, setHistory] = useState({});
   const [config, setConfig] = useState({});
-  const [token, setToken] = useState(localStorage.getItem("site") || "");
   const navigate = useNavigate();
 
   const loginAction = async (data) => {
@@ -19,8 +18,6 @@ const AuthProvider = ({ children }) => {
     if (response.data) {
       setUser(response.data.username);
       setHistory(response.data.search_histories);
-      //setToken(response.data.token);
-      //localStorage.setItem("site", response.data.token);
       navigate("/")
       try {
           const conf_data = {
@@ -44,7 +41,6 @@ const AuthProvider = ({ children }) => {
           }
 
          await readConfig(conf_data, setConfig)
-
     
       } catch (error) {
             throw new Error("No data received for configuration read");
@@ -80,8 +76,6 @@ const AuthProvider = ({ children }) => {
 
     if (response.data) {
       loginAction(data)
-      //setToken(response.data.token);
-      //localStorage.setItem("site", response.data.token);
       window.location.href = "/";
     } else {
       throw new Error("No data received from server");
@@ -113,8 +107,6 @@ const AuthProvider = ({ children }) => {
     setUser(null);
     setConfig({});
     setHistory({});
-    setToken("");
-    localStorage.removeItem("site");
     window.location.href="/login";
   };
     
@@ -123,7 +115,7 @@ const AuthProvider = ({ children }) => {
   }, [config])
 
   return (
-    <AuthContext.Provider value={{ token, user, loginAction, logOut, registerAction, history, config }}>
+    <AuthContext.Provider value={{ user, loginAction, logOut, registerAction, history, config, setConfig}}>
       {children}
     </AuthContext.Provider>
   );

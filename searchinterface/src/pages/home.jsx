@@ -96,7 +96,6 @@ const Home = () => {
                     const response = await axios.post('http://localhost:9797/search/get-results', updatedConfig)
                     
                     const duration = window.performance.now() - start
-                    console.log("Search took: ", duration, "ms")
 
                     setSearchResults(response.data.results)
                     results.push(...response.data.results)
