@@ -176,7 +176,7 @@ impl<'r> Responder<'r, 'static> for ConfigResult {
 pub fn write(config: Json<Config>) -> ConfigResult {
     let mut config: Config = config.into_inner();
     match config.write() {
-        Ok(()) => return ConfigResult::WriteSuccess(Json(())),
+        Ok(()) => return ConfigResult::WriteSuccess(Json(config)),
         Err(e) => return ConfigResult::WriteError(Json(e.to_string())),
     }
 }

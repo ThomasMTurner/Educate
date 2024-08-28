@@ -1,7 +1,7 @@
 import { SelectConfig, BoxConfig, MultiSelectConfig } from '../components/Config';
-import { useState, useEffect } from 'react';
-import { useAuth } from '../AuthProvider';
+import { useState } from 'react';
 import { writeConfig } from '../config_utilities';
+import { useAuth } from '../AuthProvider';
 
 /* 
 POSSIBLE TO DO: currently the search configuration is only saved on the button press event.
@@ -15,6 +15,8 @@ const settings = () => {
     const [altSearchParams, setAltSearchParams] = useState({"Crawl depth": 1, "Number of seed domains": 30});
     const [browsers, setBrowsers] = useState({"Google": true, "DuckDuckGo": false});
 
+    const {config, setConfig} = useAuth();
+
     const indexMap = {
         'Document-Term': 0,
         'Inverted': 1,
@@ -24,6 +26,13 @@ const settings = () => {
     const searchMethodMap = {
         'Document Clustering': 0,
         'PageRank': 1
+    }
+
+    const configWriter = (updatedSearchParameters) => {
+        let updatedConfig = {...config, search_params: updatedSearchParameters}
+        console.log(updatedConfig);
+        setConfig(updatedConfig);
+        writeConfig(updatedSearchParameters);
     }
 
     const collectSearchParameters = () => {
@@ -40,10 +49,6 @@ const settings = () => {
         return searchParameters
     }
 
-    useEffect(() => {
-        console.log(config)
-    }, [])
-
     return (
         <div style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
             <h1 style={{fontFamily: 'helvetica', fontWeight: '500', fontSize: '2.5rem'}}> Search Settings </h1>
@@ -55,8 +60,7 @@ const settings = () => {
             <button onClick={() => writeConfig({
                 ...config, 
                 'search_params': collectSearchParameters() 
-            }, setConfig)}> Save </button>
-        </div>
+            }, setConfig)}> Save </button>        
    ) 
 }
 

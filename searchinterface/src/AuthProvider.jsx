@@ -4,6 +4,7 @@ import { readConfig } from './config_utilities';
 import axios from 'axios';
 
 const AuthContext = createContext();
+const SESSION_STORAGE_KEY = "app_auth_state";
 
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -11,9 +12,31 @@ const AuthProvider = ({ children }) => {
   const [config, setConfig] = useState({});
   const navigate = useNavigate();
 
+  const [config, setConfig] = useState(() => {
+    const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    return saved ? JSON.parse(saved): {
+        user: {username: '', password: '', history: []},
+        redis_connection_str: '',
+        search_params: {
+            crawl_depth: 1,
+            number_of_seeds: 30,
+            search_method: 0,
+            browsers: {Google: false, DuckDuckGo: true},
+            index_type: 0,
+            q: ''
+        }
+    };
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(config));
+    console.log("Config updated: ", config);
+  }, [config])
+  
   const loginAction = async (data) => {
   try {
     const response = await axios.post("http://localhost:9797/auth/login", data);
+    console.log('Obtained login response', response.data);
 
     if (response.data) {
       setUser(response.data.username);
@@ -108,11 +131,8 @@ const AuthProvider = ({ children }) => {
     setConfig({});
     setHistory({});
     window.location.href="/login";
+    // TO DO: Clear session storage.
   };
-    
-  useEffect(() => {
-    console.log('Config updated to: ', config);
-  }, [config])
 
   return (
     <AuthContext.Provider value={{ user, loginAction, logOut, registerAction, history, config, setConfig}}>

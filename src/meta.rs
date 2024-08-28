@@ -10,13 +10,8 @@ use rocket::serde::json::Json;
 use std::process::Command;
 //use geolocation;
 
-
-// Overview of the service.
-// (1) Take a batch of search requests. This will be specified by the browser, query & location.
-// Location may be specified automatically (WARN ON DEFAULT LOCATION PROVIDING SLOW REQUESTS) or
-// through the user providing their IP address manually.
-// (2) Distribute batch over parallel threads to aggregate results. 
-// ALSO TO DO; need to specify a specific error type & also the structure of the output.
+// NOTE: thiserror is often recommended for error type building.
+// NOTE: probably should use issue tracking rather 
 
 #[derive(Serialize, Deserialize)]
 pub enum SearchResponse {
@@ -72,7 +67,8 @@ impl MetaSearchRequest {
         } 
     }
 
-    /// LARGER TO DO:
+
+    /// TO DO (LATER):
     /// BOTH OF THESE CAN BE MODIFIED TO INCORPORATE USER LOCALE AND 
     /// FURTHER SEARCH FILTERS.
     /// I.E. LOCALE INFORMATION CAN BE USED (AREA CODE) WITH -R 
@@ -97,8 +93,6 @@ impl MetaSearchRequest {
     // TO DO:
     // Does require API key - need to see how to collect this appropriately.
     async fn googler_collect(&self) -> SearchResponse {
-        // Check correct setting of API key - direct user
-        // in documentation.
         let key = self.browser.to_uppercase() + "_API_KEY";
         if let Ok(v) = env::var(key) {
             // Set API key for Googler config.
@@ -118,48 +112,8 @@ impl MetaSearchRequest {
 
     }
     
-    // Boxed dynamically allocated error is used here due to the error type of the 
-    // serpapi::Client::search() method.
-    // TO DO: need to fix returning error types - issues with smart pointers (dyn)
-    // not being thread safe.
-    /*
-    async fn serpapi_collect(&self) -> SearchResponse {
-        let mut default = HashMap::<String, String>::new();
-        default.insert("engine".to_string(), self.browser.clone());
-
-        // NOTE: user must export &BROWSER&_API_KEY first.
-        let key = self.browser.to_string().to_uppercase() + "_API_KEY";
-
-        if let Ok(v) = env::var(key) {
-            default.insert("api_key".to_string(), v);
-        } else {
-            panic!("No API key found for browser: {}", self.browser);
-        }
-
-        let client = Arc::new(Mutex::new(Client::new(default)));
-
-        let mut parameter = HashMap::<String, String>::new();
-        parameter.insert("q".to_string(), self.q.to_string());
-        //parameter.insert("location".to_string(), self.location.to_string());
-
-        // Lock the client and perform the search
-        let client = client.lock().await;
-        let mut response = serde_json::Value::Null;
-
-        match client.search(parameter).await {
-            Ok(res) => response = res,
-            Err(e) => eprintln!("Error obtaining meta search response: {:?}", e)
-        }
-
-        // Obtain organic results.
-        let organic = response["organic_results"].as_array().ok_or_else(|| {eprintln!("No organic results found")}).unwrap();
-        assert!(organic.len() > 0);
-        println!("Got organic results: {:?}", organic);
-
-        // Still have no idea what the organic output is.
-        SearchResponse::MetaSearch(MetaSearchResult::new(' '.to_string()))
-    } 
-    */
+    // May want to extract more useful information from the engine directly
+    // using some available Search API as opposed to simple command line tools.
     
 }
 
