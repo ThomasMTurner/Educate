@@ -29,3 +29,5 @@ redis = "0.23.0"
 serpapi = "1.0.0"
 geolocation = "0.2.1"
 futures = "0.3"
+regex = "1.10.6"
+

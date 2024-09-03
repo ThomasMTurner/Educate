@@ -9,7 +9,7 @@ const SESSION_STORAGE_KEY = "app_auth_state";
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [history, setHistory] = useState({});
-  const [config, setConfig] = useState({});
+  //const [config, setConfig] = useState({});
   const navigate = useNavigate();
 
   const [config, setConfig] = useState(() => {

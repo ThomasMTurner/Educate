@@ -276,44 +276,25 @@
     pub fn get_ranked_documents (query: String, index: Indexer) -> Result<Vec<Document>, String> {
         let document_terms;
         
-        // Unwrap the Indexer type
         match collect_terms (index) {
             Some (map) => {
                 document_terms = map;
             },
             None => {
-                // Code 3: indexing error.
                 return Err(String::from("3"))
             }
         }
 
-        println!("Terms collected.");
-
         let embeddings = embed_documents(document_terms, 2)?;
 
-        println!("Embedding for documents complete.");
-    
         let clusters: Vec<Cluster>;
-
 
         match generate_clusters(embeddings.clone()) {
             Ok(clusters_out) => clusters = clusters_out,
             Err(_) => return Err(String::from("4"))
         }
 
-        println!("Generated clusters.");
-
-        // Embed the query for similarity comparison with cluster centroids.
-        // Split the query into multiple terms - then normalise these outputs and average them.
-        let query_value: Value = serde_json::from_str(&query).map_err(|_| String::from("2"))?;
-
-        let extracted_query;
-        match query_value.get("query") {
-            Some(q) => extracted_query = q,
-            None => return Err(String::from("2"))
-        }
-
-        let parsed_query = extracted_query.to_string().replace("\"", "").trim().split_whitespace().map(str::to_string).collect();
+        let parsed_query = query.to_string().replace("\"", "").trim().split_whitespace().map(str::to_string).collect();
         
         let query_embeddings = make_embeddings(parsed_query)?;
 
@@ -341,8 +322,6 @@
         for doc in &min.unwrap().documents {
             ranked_docs.push(doc.document.clone());
         }
-
-        println!("Ranked documents: {:?}", ranked_docs.par_iter().map(|d| d.title.to_string()).collect::<Vec<String>>());
 
         Ok(ranked_docs)
     }

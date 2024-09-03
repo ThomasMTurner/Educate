@@ -3,13 +3,8 @@ import { useState } from 'react';
 import { writeConfig } from '../config_utilities';
 import { useAuth } from '../AuthProvider';
 
-/* 
-POSSIBLE TO DO: currently the search configuration is only saved on the button press event.
-May wish to enable writing to a swap file or buffer in the event of the application crashing.
-*/
 
 const settings = () => {
-    const { config, setConfig } = useAuth();
     const [searchMethod, setSearchMethod] = useState({"Document Clustering": true, "PageRank": false});
     const [indexType, setIndexType] = useState({"Document-Term": true, "Inverted": false, "B-Tree": false});
     const [altSearchParams, setAltSearchParams] = useState({"Crawl depth": 1, "Number of seed domains": 30});
@@ -26,13 +21,6 @@ const settings = () => {
     const searchMethodMap = {
         'Document Clustering': 0,
         'PageRank': 1
-    }
-
-    const configWriter = (updatedSearchParameters) => {
-        let updatedConfig = {...config, search_params: updatedSearchParameters}
-        console.log(updatedConfig);
-        setConfig(updatedConfig);
-        writeConfig(updatedSearchParameters);
     }
 
     const collectSearchParameters = () => {
@@ -60,7 +48,8 @@ const settings = () => {
             <button onClick={() => writeConfig({
                 ...config, 
                 'search_params': collectSearchParameters() 
-            }, setConfig)}> Save </button>        
+            }, setConfig)}> Save </button>
+        </div>
    ) 
 }
 

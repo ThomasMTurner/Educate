@@ -10,7 +10,7 @@ use crate::services::{fill_indices, get_search_results};
 //use crate::parser::Document;
 use crate::auth::{authenticate, Credentials, SearchHistoryResponse, make_registration, update_history};
 use crate::config::Config;
-use crate::meta::{aggregate, MetaSearchRequest, SearchResult};
+use crate::meta::{aggregate, MetaSearchRequest, SearchResult, SearchResponse};
 
 // Corrected OPTIONS handler
 #[options("/<_..>")]
@@ -40,7 +40,6 @@ impl<'r> Responder<'r, 'static> for SearchResult {
     }
 }
 
-
 // TO DO: enable setting values by config.
 #[post("/get-results", data = "<config>")]
 pub async fn get_results(config: Json<Config>) -> SearchResult {
@@ -57,21 +56,24 @@ pub async fn get_results(config: Json<Config>) -> SearchResult {
 
     println!("Obtained search requests: {:?}", requests);
     
-    let mut responses = Vec::new();
-
-    if let Ok(res) = aggregate(requests).await {
-       responses.extend(res);
-    } else {
-        return SearchResult::Error(Json(String::from("Error with aggregating meta search requests.")))
+    let mut responses: Vec<SearchResponse> = Vec::new();
+    
+    match aggregate(requests).await {
+        Ok(res) => responses.extend(res),
+        Err(e) => return SearchResult::Error(Json(e.to_string()))
     }
+
+    println!("Obtained meta search responses: {:?}", responses);
 
     // Obtain raw search results.
     match get_search_results(q) {
         Ok(results) => {
             responses.push(results);
+            println!("Obtained {:?} search results", responses.len());
             return SearchResult::Documents(Json(responses))
         },
         Err(e) => {
+            println!("Error obtaining search results: {:?}", e);
             match e.as_str() {
                 "-2" => SearchResult::Error(Json(String::from("Unspecified error"))),
                 "-1" => SearchResult::Error(Json(String::from("No terms could be found in model vocabulary"))),
@@ -176,7 +178,7 @@ impl<'r> Responder<'r, 'static> for ConfigResult {
 pub fn write(config: Json<Config>) -> ConfigResult {
     let mut config: Config = config.into_inner();
     match config.write() {
-        Ok(()) => return ConfigResult::WriteSuccess(Json(config)),
+        Ok(()) => return ConfigResult::WriteSuccess(Json(())),
         Err(e) => return ConfigResult::WriteError(Json(e.to_string())),
     }
 }

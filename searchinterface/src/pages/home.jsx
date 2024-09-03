@@ -85,23 +85,44 @@ const Home = () => {
                         console.error(error)
                     })
 
-                let results = []
+                //let results = []
                
                 try {
 
                     // Call to rank existing indices based on search query.
                     // TO DO: need to send a Config object here. Consider using the AuthProvider
                     // context to extract the current Config object.
-                    console.log('Utilising the updated search configuration:', updatedConfig)
                     const response = await axios.post('http://localhost:9797/search/get-results', updatedConfig)
+                    console.log('Obtained search results: ', response.data)
                     
                     const duration = window.performance.now() - start
+                    var searchResults = []
+                    var ranked = 0
+                    var indexed = 0;
+                    var obtained_index = false;
 
-                    setSearchResults(response.data.results)
-                    results.push(...response.data.results)
+                    for (const item of response.data) {
+                        if ('MetaSearch' in item) {
+                            let result = item.MetaSearch;
+                            result.type = 'meta';
+                            searchResults.push(item.MetaSearch);
+                            
+                        } else if ('Search' in item) {
+                            for (const result of item.Search.results) {
+                                result.type = 'local';
+                                if (!obtained_index) {
+                                    indexed = result.indexed;
+                                    obtained_index = true;
+                                }
+                            }
+                            searchResults.push(...item.Search.results);
+                            ranked += 1;
+                        }
+                    }
+                    
+                    setSearchResults(searchResults)
 
-                    // TO DO: set performance indicators (number indexed, number ranked, time taken).
-                    setPerformance({"Indexed": response.data.indexed, "Ranked": response.data.results.length, "Time": convertMsToTime(duration)}) 
+                    setPerformance({"Indexed": indexed, "Ranked": ranked, "Time": convertMsToTime(duration)}) 
 
                     setLoadingResults(false)
                     setSearchBarOffset(0)
@@ -113,7 +134,7 @@ const Home = () => {
                 
                     if (user != null) {
                         try {
-                            const result = results.map(({ url, title }) => ({ 
+                            const result = searchResults.map(({ url, title }) => ({ 
                             url, 
                             title, 
                             date: new Date().toLocaleString(),
