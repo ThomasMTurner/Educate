@@ -18,7 +18,7 @@ axios.defaults.timeout = 500000;
 function convertMsToTime(ms) {
     let seconds = Math.floor((ms / 1000) % 60);
     let minutes = Math.floor(ms / 60000);
-    return `${minutes} minutes; ${seconds} seconds`
+    return `${minutes} minutes ${seconds} seconds`
 }
 
 const Home = () => {
@@ -58,7 +58,6 @@ const Home = () => {
             const handleSearch = async () => {
                 // Begin performance timer.
                 const start = window.performance.now()
-                console.log("Starting search at: ", start)
 
                 // Trigger search bar animation.
                 setResultsScreen(true)
@@ -69,14 +68,13 @@ const Home = () => {
                 const updatedConfig = {
                     ...config,
                     search_params: {
-                        ...config.search_params, // Spread the existing search_params
-                        q: searchQuery // Update the nested q key
+                        ...config.search_params, 
+                        q: searchQuery 
                     }
 }               ;
 
                 console.log("Obtained new search configuration: ", updatedConfig)
                 
-                // Call to fill indices with new documents.
                 await axios.get("http://localhost:9797/search/fill")
                     .then((response) => {
                         console.log(response.data)
@@ -85,21 +83,14 @@ const Home = () => {
                         console.error(error)
                     })
 
-                //let results = []
-               
                 try {
-
-                    // Call to rank existing indices based on search query.
-                    // TO DO: need to send a Config object here. Consider using the AuthProvider
-                    // context to extract the current Config object.
                     const response = await axios.post('http://localhost:9797/search/get-results', updatedConfig)
-                    console.log('Obtained search results: ', response.data)
+                    console.log('Search results: ', response.data)
                     
                     const duration = window.performance.now() - start
                     var searchResults = []
                     var ranked = 0
                     var indexed = 0;
-                    var obtained_index = false;
 
                     for (const item of response.data) {
                         if ('MetaSearch' in item) {
@@ -108,22 +99,17 @@ const Home = () => {
                             searchResults.push(item.MetaSearch);
                             
                         } else if ('Search' in item) {
+                            indexed = item.Search.indexed;
+                            ranked = item.Search.results.length;
                             for (const result of item.Search.results) {
                                 result.type = 'local';
-                                if (!obtained_index) {
-                                    indexed = result.indexed;
-                                    obtained_index = true;
-                                }
                             }
                             searchResults.push(...item.Search.results);
-                            ranked += 1;
                         }
                     }
                     
                     setSearchResults(searchResults)
-
                     setPerformance({"Indexed": indexed, "Ranked": ranked, "Time": convertMsToTime(duration)}) 
-
                     setLoadingResults(false)
                     setSearchBarOffset(0)
 
@@ -222,7 +208,7 @@ const Home = () => {
         > 
         <SearchBar setSearchQuery={setSearchQuery} setSearch={setSearch}/>
             <div style={{display:'flex', position:'relative', alignItems:'left', justifyContent:'left', textAlign:'left', flexDirection:'column'}}>
-            {(!loadingResults) && <p style={{fontFamily:'arial', color:'darkgray', fontWeight:'200'}}> (Indexed {performance["Indexed"]} results & ranked {performance["Ranked"]} results in {performance["Time"]})  </p>}
+            {(!loadingResults) && <p style={{fontFamily:'helvetica', color:'darkslateblue', fontWeight:'bold'}}> [{performance["Ranked"]} search results were ranked from {performance["Indexed"]} indexed web documents in {performance["Time"]}]</p>}
             {!(loadingResults) ? (
                 searchResults.map((document, index) => (
                     <div onClick={() => window.open(document.url, '_blank')} key={index}>

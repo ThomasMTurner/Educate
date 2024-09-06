@@ -25,15 +25,14 @@ const settings = () => {
 
     const collectSearchParameters = () => {
         const searchParameters = {
-            'crawl_depth': altSearchParams['Crawl depth'],
-            'number_of_seeds': altSearchParams['Number of seed domains'],
+            'crawl_depth': parseInt(altSearchParams['Crawl depth'], 10),
+            'number_of_seeds': parseInt(altSearchParams['Number of seed domains'], 10),
             'search_method': searchMethodMap[Object.keys(searchMethod).find(key => searchMethod[key])],
             'browsers': browsers,
             'index_type': indexMap[Object.keys(indexType).find(key => indexType[key])],
             'q': ''
         }
-        
-        console.log('Obtained new search parameters: ', searchParameters)
+        console.log('Search Parameters: ', searchParameters)
         return searchParameters
     }
 
