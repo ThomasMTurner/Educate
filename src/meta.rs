@@ -7,8 +7,6 @@ use std::process::Command;
 use regex::Regex;
 //use geolocation;
 
-// NOTE: thiserror is often recommended for error type building.
-
 #[derive(Serialize, Deserialize, Debug)]
 pub enum SearchResponse {
     Search(DocumentResult),
@@ -20,17 +18,18 @@ pub enum SearchResult {
     Error(Json<String>)
 }
 
-
+// TO DO: add engine field so this can be displayed in the UI.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MetaSearchResult {
     pub title: String,
     pub url: String,
-    pub description: String
+    pub description: String,
+    pub engine: String
 }
 
 impl MetaSearchResult {
-    fn new(title: String, url: String, description: String) -> Self {
-        MetaSearchResult { title, url, description }
+    fn new(title: String, url: String, description: String, engine: String) -> Self {
+        MetaSearchResult { title, url, description, engine }
     }
 }
 
@@ -69,18 +68,18 @@ impl MetaSearchRequest {
         } 
     }
     
-    // TO DO:
-    // Define a proper regular expression for capture groups ((number . )(some text)([url])(some
-    // text))
-    // Test this works for ddgr and googler outputs.
-    fn process_with_expression(&self, raw: &str) -> Result<Vec<SearchResponse>, regex::Error> {
+    fn process_with_expression(&self, raw: &str, engine: &str) -> Result<Vec<SearchResponse>, regex::Error> {
         // Define regex for simple pattern (number.)(title)([url])(description).
+        // If needing to extend to other command line tools - sufficient to define a parameter
+        // for a regular expression matched against the engine type.
         let re = Regex::new(r"(\d+)\.\s*(.+)\s*(\[.+?\])\s*(.+)")?;
         
         // Convert captures to MetaSearchResult.
         let captures: Vec<SearchResponse> = re.captures_iter(raw)
             .map(|cap| SearchResponse::MetaSearch(
-                MetaSearchResult::new(cap[2].to_string(), cap[3].to_string(), cap[4].to_string())))
+                MetaSearchResult::new(cap[2].to_string(), 
+                    format!("{}{}", "https://", cap[3].to_string().replace(|c| c == ']' || c == '[', "")),
+                    cap[4].to_string(), String::from(engine))))
             .collect();
 
         Ok(captures)
@@ -92,11 +91,9 @@ impl MetaSearchRequest {
             .args(self.q.split_whitespace())
             .output()
             .expect("Failed to execute ddgr");
-
+    
         let raw = String::from_utf8_lossy(&output.stdout);
-        //println!("Raw: {}", raw);
-        let results = self.process_with_expression(&raw)?;
-        println!("Results: {:?}", results);
+        let results = self.process_with_expression(&raw, "DuckDuckGo")?;
         Ok(results)
     }
     
