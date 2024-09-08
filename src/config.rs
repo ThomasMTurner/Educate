@@ -19,8 +19,8 @@ searchMethod: 0 -> Document Clustering, 1 -> PageRank
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SearchParams {
-    crawl_depth: u8,
-    number_of_seeds: u8,
+    pub crawl_depth: u8,
+    pub number_of_seeds: u8,
     search_method: u8,
     pub browsers: HashMap<String, bool>,
     index_type: u8,

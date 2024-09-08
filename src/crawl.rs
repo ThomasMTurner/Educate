@@ -2,13 +2,7 @@ use scraper::{Html, Selector};
 use std::collections::BinaryHeap;
 use reqwest::get;
 
-
-// IMPLEMENTED:
-// Compact representation of each document using the unique URL and how far we have travelled from seed URL's.
-// Using unsigned 32 - allows depth of 2^32 documents, of course no negative depth.
-
 #[derive(Debug, Eq, PartialEq, Clone)]
-
 struct UrlToVisit {
     url: String,
     crawl_depth: u32,
@@ -49,13 +43,9 @@ async fn get_crawl_result(url: &str) -> Result<CrawlResult, reqwest::Error> {
     
     for element in fragment.select(&url_selector) {
         if let Some(url) = element.value().attr("href") {
-            println!("Found a new URL to crawl: {}", url);
             new_urls.push(url.to_string());
-        } else {
-            println!("No new URLs found for this one.");
         }
     }
-
     
     let crawl_result = CrawlResult {
         url: url.to_string(),

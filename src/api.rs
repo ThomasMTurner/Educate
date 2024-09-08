@@ -4,7 +4,7 @@ use rocket::{Request, Response, routes};
 use rocket::response::{Responder, Result};
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::serde::json::Json;
-use rocket::{get, post, options, launch};
+use rocket::{post, options, launch};
 use crate::services::{fill_indices, get_search_results};
 //use serde_json::{Value, json};
 //use crate::parser::Document;
@@ -18,11 +18,12 @@ fn options() -> &'static str {
     "OK"
 }
 
-// TO DO: enable setting values by config.
-#[get("/fill")]
-async fn fill() {
-    let crawl_depth: u8 = 1;
-    let seed_count: u8  = 30;
+#[post("/fill", data = "<config>")]
+async fn fill(config: Json<Config>) {
+    // Set values by config.
+    let config: Config = config.into_inner();
+    let crawl_depth: u8 = config.search_params.crawl_depth;
+    let seed_count: u8 = config.search_params.number_of_seeds;
     fill_indices(crawl_depth, seed_count).await;
 }
 
