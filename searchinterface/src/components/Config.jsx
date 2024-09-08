@@ -55,7 +55,7 @@ export const BoxConfig = (props) => {
                 <div key={k} style={{display:"flex", flexDirection:"row", alignItems:"center", gap:"1rem"}}>
                 <p>{k}</p>
                 <form>
-                    <input style={{width:"2rem", height:"2rem"}}onChange={(e) => props.setState(prevState => ({...prevState, [k]: e.target.value}))} ></input>
+                    <input style={{width:"2rem", height:"1.3rem"}} placeholder={v} onChange={(e) => props.setState(prevState => ({...prevState, [k]: e.target.value}))} ></input>
                 </form>
                 </div>
             ))}

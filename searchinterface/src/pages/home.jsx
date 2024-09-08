@@ -75,7 +75,7 @@ const Home = () => {
 
                 console.log("Obtained new search configuration: ", updatedConfig)
                 
-                await axios.get("http://localhost:9797/search/fill")
+                await axios.post("http://localhost:9797/search/fill", updatedConfig)
                     .then((response) => {
                         console.log(response.data)
                     })
