@@ -6,11 +6,6 @@ use serde_json::json;
 use std::collections::HashMap;
 use serde_json::Value;
 
-// TO DO:
-// Create configuration structure.
-// Implement Redis cache writing & reading of the config structure.
-// Export & implement API call for updating & reading the config with the below utilities.
-
 /*
 Reference guide:
 indexType: 0 -> Document-Term, 1 -> Inverted, 2 -> B-Tree
@@ -34,6 +29,8 @@ pub struct Config {
     user: Credentials,
     redis_connection_str: String,
     pub search_params: SearchParams,
+    pub autosuggest: bool,
+    pub query_correction: bool
 }
 
 
@@ -41,12 +38,12 @@ impl Config {
     // TO DO: Modify to set default values.
     // Will need to manually enter the user & redis connection string,
     // default constructor necessary for search_params.
-    pub fn new(user: Credentials, mut redis_connection_str: String, search_params: SearchParams) -> Self {
+    pub fn new(user: Credentials, mut redis_connection_str: String, search_params: SearchParams, autosuggest: bool, query_correction: bool) -> Self {
         // Set default Redis connection string if not provided.
         if redis_connection_str.is_empty() {
             redis_connection_str = String::from("redis://127.0.0.1:6379");
         }
-        Config {user, redis_connection_str, search_params} 
+        Config {user, redis_connection_str, search_params, autosuggest, query_correction} 
     }
         
     pub fn write(&mut self) -> RedisResult<()> {

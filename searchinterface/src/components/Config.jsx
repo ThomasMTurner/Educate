@@ -25,6 +25,16 @@ return (
 
 }
 
+export const TickConfig = (props) => {
+    return (
+        <div style={{display: 'flex', flexDirection:'row', gap: '2rem', justifyContent: 'left', alignItems: 'center'}}>
+            <h1 style={{fontSize: '1rem', fontWeight: '500', fontFamily: 'helvetica'}}> {props.title} </h1>
+            <input style={{width:"1.5rem", height:"1.5rem"}} type="checkbox" checked={props.state}
+                 onChange={(_) => props.setState(!props.state)}/>
+        </div>
+    )
+}
+
 export const MultiSelectConfig = (props) => {
     return  ( 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem'}}>

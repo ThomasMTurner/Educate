@@ -4,8 +4,6 @@ use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use serde_json::{json, Value};
 
-
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SearchHistory {
     pub url: String,
@@ -19,7 +17,6 @@ pub struct SearchHistoryResponse {
     search_histories: Vec<SearchHistory>,
     username: String
 }
-
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Credentials {
@@ -90,7 +87,6 @@ pub fn authenticate(cred: &Credentials) -> RedisResult<SearchHistoryResponse> {
     let result = get_credentials(&mut con, &cred.username)?;
 
     if &cred.password != result.password.as_str() {
-        println!("Invalid password!");
         // Modify based on available redis Error Kinds.
         Err(RedisError::from((redis::ErrorKind::TypeError, "Invalid password.")))
     }
@@ -104,9 +100,6 @@ pub fn authenticate(cred: &Credentials) -> RedisResult<SearchHistoryResponse> {
 
 }
 
-
-// TO DO: needs implementing (CONSIDER PASSING THE CLIENT INSTANCE RATHER THAN CREATING NEW
-// INSTANCES FOR EACH LOGIN & REGISTRATION REQUEST)
 pub fn make_registration(cred: &Credentials) -> RedisResult<()> {
     let client = redis::Client::open("redis://127.0.0.1/")?;
     let mut con = client.get_connection()?;
