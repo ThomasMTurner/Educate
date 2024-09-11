@@ -1,18 +1,18 @@
-import { SelectConfig, BoxConfig, MultiSelectConfig } from '../components/Config';
+import { SelectConfig, BoxConfig, MultiSelectConfig, TickConfig } from '../components/Config';
 import { useState } from 'react';
 import { writeConfig } from '../config_utilities';
 import { useAuth } from '../AuthProvider';
 
-const getSearchParametersState = (config) => {
+const getSearchMethodState = (config) => {
     const searchMethodInverseMap = {
         0: 'Document Clustering with Word2Vec',
         1: 'Document Clustering with Doc2Vec',
         2: 'Document Clustering with Sentence Transformers',
         3: 'TF-IDF Search Ranking'
     }
-    let setSearchParametersState = {"Document Clustering with Word2Vec": false, "Document Clustering with Doc2Vec": false, "Document Clustering with Sentence Transformers": false, "TF-IDF Search Ranking": false, "PageRank": false};
-    setSearchParametersState[searchMethodInverseMap[config['search_params']['search_method']]] = true;
-    return setSearchParametersState;
+    let setSearchMethodState = {"Document Clustering with Word2Vec": false, "Document Clustering with Doc2Vec": false, "Document Clustering with Sentence Transformers": false, "TF-IDF Search Ranking": false, "PageRank": false};
+    setSearchMethodState[searchMethodInverseMap[config['search_params']['search_method']]] = true;
+    return setSearchMethodState;
 }
 
 const getIndexTypeState = (config) => {
@@ -29,13 +29,15 @@ const getIndexTypeState = (config) => {
 
 const settings = () => {
     const { config, setConfig } = useAuth();
-    const [searchMethod, setSearchMethod] = useState(getSearchParametersState(config));
+    const [searchMethod, setSearchMethod] = useState(getSearchMethodState(config));
     const [indexType, setIndexType] = useState(getIndexTypeState(config));
     const [altSearchParams, setAltSearchParams] = useState({"Crawl depth": config.search_params.crawl_depth, 
         "Number of seed domains": config.search_params.number_of_seeds});
     const [browsers, setBrowsers] = useState(config.search_params.browsers); 
+    // Replace with config.autosuggest & config.query_correction.
+    const [checkedSuggestions, setCheckedSuggestions] = useState(config.autosuggest);
+    const [checkedQueryCorrection, setCheckedQueryCorrection] = useState(config.query_correction);
     
-
     const indexMap = {
         'Document-Term': 0,
         'Inverted': 1,
@@ -43,11 +45,16 @@ const settings = () => {
     }
 
     const searchMethodMap = {
-        'Document Clustering': 0,
-        'PageRank': 1
+        'Document Clustering with Word2Vec': 0,
+        'Document Clustering with Doc2Vec': 1,
+        'Document Clustering with Sentence Transformers': 2,
+        'TF-IDF Search Ranking': 3
     }
 
     const collectSearchParameters = () => {
+        console.log('Search method has initial value: ', searchMethod)
+        console.log('Search method should be set: ', searchMethodMap[Object.keys(searchMethod).find(key => searchMethod[key])])
+
         const searchParameters = {
             'crawl_depth': parseInt(altSearchParams['Crawl depth'], 10),
             'number_of_seeds': parseInt(altSearchParams['Number of seed domains'], 10),
@@ -61,7 +68,9 @@ const settings = () => {
     }
 
     const updateAndWriteConfig = () => {
-        let configUpdated = {...config, 'search_params': collectSearchParameters()};
+        let configUpdated = {...config, 'search_params': collectSearchParameters(), 
+            'autosuggest': checkedSuggestions, 'query_correction': checkedQueryCorrection};
+        console.log('Updated Config in Button press event: ', configUpdated)
         writeConfig(configUpdated);
         setConfig(configUpdated);
     }
@@ -74,6 +83,9 @@ const settings = () => {
             <BoxConfig title="Search Parameters" state={altSearchParams} setState={setAltSearchParams}/>
             <h1 style={{fontFamily: 'helvetica', fontWeight: '500', fontSize: '2.5rem'}}> Meta-Search Settings </h1>
             <MultiSelectConfig title="Engines" state={browsers} setState={setBrowsers}/>
+            <h1 style={{fontFamily: 'helvetica', fontWeight: '500', fontSize: '2.5rem'}}> Other </h1>
+            <TickConfig title='Autosuggestions with Trie Search (this will use your search history)' state={checkedSuggestions} setState={setCheckedSuggestions}/>
+            <TickConfig title='Query Typo Correction with Levenshtein Distance' state={checkedQueryCorrection} setState={setCheckedQueryCorrection}/>
             <button onClick={() => updateAndWriteConfig()}> Save </button>
         </div>
    ) 

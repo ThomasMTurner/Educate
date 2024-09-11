@@ -188,7 +188,6 @@ pub fn write(config: Json<Config>) -> ConfigResult {
 #[post("/read", data="<config>")]
 pub fn read(config: Json<Config>) -> ConfigResult {
     let mut config: Config = config.into_inner();
-    println!("Config: {:?}", config);
     match config.read() {
         Ok(()) => return ConfigResult::ReadSuccess(Json(config)),
         Err(e) => return ConfigResult::ReadError(Json(e.to_string())),

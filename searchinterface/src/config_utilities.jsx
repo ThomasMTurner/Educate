@@ -3,6 +3,7 @@ import axios from 'axios';
 
 export const writeConfig = async (config) => {
     try {
+        console.log('Attempting to write config: ', config)
         await axios.post("http://localhost:9797/config/write", config);
     } catch (error) {
         console.error(error);

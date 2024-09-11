@@ -10,7 +10,6 @@
     
 }
 
-
 .SearchBarContainer input {
     border-style: solid;
     border-radius: 2rem;
@@ -27,4 +26,18 @@
 .SearchBarContainer input:focus {
     outline: none;
     border-width:0.20rem;
+}
+
+.Suggestion {
+    font-family: helvetica;
+    position: relative;
+    font-size: 0.8rem;
+    right: 20.6rem;
+    top: 0;
+    height: 100%;
+    line-height: 30px; /* Adjust based on input height */
+    color: gray;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 1;
 }

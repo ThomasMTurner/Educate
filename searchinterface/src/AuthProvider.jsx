@@ -1,6 +1,7 @@
 import { useContext, createContext, useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import { readConfig } from './config_utilities';
+import TrieSearch from 'trie-search';
 import axios from 'axios';
 
 const AuthContext = createContext();
@@ -11,6 +12,32 @@ const AuthProvider = ({ children }) => {
   const [history, setHistory] = useState({});
   //const [config, setConfig] = useState({});
   const navigate = useNavigate();
+  const [dataArray, setDataArray] = useState([]);
+  const [trie, setTrie] = useState(() => new TrieSearch('key'));
+  const [relevanceTrie, setRelevanceTrie] = useState(() => new TrieSearch('key'));
+  
+  useEffect(() => {
+    const fetchData = async () => {
+        try {
+            const response = await fetch('https://raw.githubusercontent.com/dwyl/english-words/master/words_dictionary.json');
+            if (!response.ok) {
+                throw new Error('Network response was not ok ' + response.statusText);
+            }
+            const data = await response.json(); // Await the JSON parsing
+            setDataArray(Object.keys(data)); // Set the dataArray state
+        } catch (error) {
+            console.error(error);
+        }
+    }
+    
+    fetchData();
+  }, [])
+
+  useEffect(() => {
+    dataArray.forEach(data => {
+        trie.add({key: data, someOtherKeyNotToBeSearched: 0})
+    }) 
+  }, [dataArray])
 
   const [config, setConfig] = useState(() => {
     const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
@@ -24,13 +51,24 @@ const AuthProvider = ({ children }) => {
             browsers: {Google: false, DuckDuckGo: true},
             index_type: 0,
             q: ''
-        }
+        },
+        autosuggest: true,
+        query_correction: true
     };
   });
 
   useEffect(() => {
     sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(config));
     console.log("Config updated: ", config);
+    // Add terms from query to the relevanceTrie that are not already present.
+    // TO DO: extra redundancy check to not add already present term.
+    let histories = config.user.history;
+    for (const history of histories) {
+        let terms = history.query.split(" ");
+        for (const term of terms) {
+            trie.add({key: term, someOtherKeyNotToBeSearched: 0})
+        }
+    }
   }, [config])
   
   const loginAction = async (data) => {
@@ -55,12 +93,14 @@ const AuthProvider = ({ children }) => {
                 number_of_seeds: 32,
                 search_method: 0,
                 browsers: {
-                    'ddg': true,
-                    'google': false
+                    'DuckDuckGo': true,
+                    'Google': false
                 },
                 index_type: 0,
                 q: ''
-             }
+            },
+            autosuggest: true,
+            query_correction: true
           }
 
          await readConfig(conf_data, setConfig)
@@ -135,7 +175,7 @@ const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loginAction, logOut, registerAction, history, config, setConfig}}>
+    <AuthContext.Provider value={{ user, loginAction, logOut, registerAction, history, config, setConfig, trie, dataArray, relevanceTrie}}>
       {children}
     </AuthContext.Provider>
   );

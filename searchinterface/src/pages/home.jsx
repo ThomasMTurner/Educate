@@ -10,6 +10,10 @@ import { motion } from 'framer-motion';
 import ClipLoader from 'react-spinners/ClipLoader';
 import axios from 'axios';
 import SearchResult from '../components/SearchResult';
+import { closest } from 'fastest-levenshtein';
+import { AutoSuggestions } from '../components/AutoSuggestion';
+
+//import TrieSearch from 'trie-search';
 //import SearchHistory from '../components/SearchHistory';
 
 // Overriding the default timeout to 5 minutes while we speedup the search request.
@@ -19,12 +23,14 @@ function convertMsToTime(ms) {
     let seconds = Math.floor((ms / 1000) % 60);
     let minutes = Math.floor(ms / 60000);
     return `${minutes} minutes ${seconds} seconds`
-}
+} 
 
 const Home = () => {
   const [iconColours, setIconColours] = useState({"Settings": "gray", "History": "gray", "Profile": "gray"})
   const [resultsScreen, setResultsScreen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [suggestions, setSuggestions] = useState([])
+  const [completion, setCompletion] = useState("")
   const [search, setSearch] = useState(false)
   const [searchResults, setSearchResults] = useState([])
   // const [summaries, setSummaries] = useState({})
@@ -33,7 +39,7 @@ const Home = () => {
   //const [historyVisible, setHistoryVisible] = useState(false);
   const [performance, setPerformance] = useState({"Indexed": null, "Ranked": null, "Time": null})
   
-  const { user, logOut, config } = useAuth();
+  const { user, logOut, config, trie, dataArray, relevanceTrie  } = useAuth();
   
   const navigate = useNavigate();
  
@@ -54,6 +60,35 @@ const Home = () => {
   }
 
   useEffect(() => {
+    if (config.autosuggest) {
+        console.log('Search query: ', searchQuery);
+        let terms = searchQuery.split(" ");
+        let auto_rel = relevanceTrie.search(terms[terms.length - 1])
+        let auto = trie.search(terms[terms.length - 1])
+        auto = [...auto_rel, ...auto]
+        const suggestions = auto.slice(0, 10)
+        console.log('Completion suggestions: ', suggestions)
+        if (!(auto === 'undefined') && auto.length > 0) {
+            let completion_obj = auto[0];
+            const completion = completion_obj.key;
+            setCompletion(completion);
+            setSuggestions(suggestions);
+        }
+        else {
+            console.log('Not setting completion')
+        }
+    }
+  }, [searchQuery])
+
+  useEffect(() => {
+        console.log('Updated suggestions: ', suggestions);
+    }, [suggestions])
+    
+  useEffect(() => {
+    console.log('Obtained completion & re-rendered: ', completion);
+  }, [completion])
+    
+  useEffect(() => {
         if (search && config) {
             const handleSearch = async () => {
                 // Begin performance timer.
@@ -65,16 +100,43 @@ const Home = () => {
                 // Trigger loading animation - reset to true.
                 setLoadingResults(true)
 
-                const updatedConfig = {
-                    ...config,
-                    search_params: {
-                        ...config.search_params, 
-                        q: searchQuery 
-                    }
-}               ;
+                let updatedConfig;
 
-                console.log("Obtained new search configuration: ", updatedConfig)
+                if (config.query_correction) {
+                    console.log('Query before levenshtein correction: ', searchQuery)
+
+                    let i = 0;
+                    let pre = searchQuery.split(" ")
+                    for (const term of pre) {
+                        let match = closest(term, dataArray);
+                        console.log('Obtained closest match: ', match)
+                        if (!(match === term)) {
+                            pre[i] = match
+                        }
+                        i += 1;
+                    }
+
+                    setSearchQuery(pre.join(" "))
+                    updatedConfig = {
+                        ...config,
+                        search_params: {
+                            ...config.search_params,
+                            q: pre.join(" ")
+                        }
+                    }
+
+                }
                 
+                else {
+                    updatedConfig = {
+                        ...config,
+                        search_params: {
+                            ...config.search_params,
+                            q: searchQuery
+                        }
+                    }
+                }
+
                 await axios.post("http://localhost:9797/search/fill", updatedConfig)
                     .then((response) => {
                         console.log(response.data)
@@ -195,8 +257,9 @@ const Home = () => {
             >
                 <p>Providing search results for educational content, carefully selected from research- and academic-oriented domains.</p>
             </motion.div>
-            <div>
-                <SearchBar searchBarOffset={searchBarOffset} setSearchQuery={setSearchQuery} setSearch={setSearch}/>
+            <div style={{display: 'flex', flexDirection: 'column'}}>
+                <SearchBar searchQuery={searchQuery} searchBarOffset={searchBarOffset} setSearchQuery={setSearchQuery} setSearch={setSearch} completion={completion}/>
+                <AutoSuggestions setCompletion={setCompletion} suggestions={suggestions}/> 
             </div>
         </div>
         ) : (
@@ -206,7 +269,7 @@ const Home = () => {
             animate={{opacity: 1, y: -10}}
             transition={{duration: 0.5}}
         > 
-        <SearchBar setSearchQuery={setSearchQuery} setSearch={setSearch}/>
+        <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} setSearch={setSearch} completion={completion}/>
             <div style={{display:'flex', position:'relative', alignItems:'left', justifyContent:'left', textAlign:'left', flexDirection:'column'}}>
             {(!loadingResults) && <p style={{fontFamily:'helvetica', color:'darkslateblue', fontWeight:'bold'}}> [{performance["Ranked"]} search results were ranked from {performance["Indexed"]} indexed web documents in {performance["Time"]}]</p>}
             {!(loadingResults) ? (

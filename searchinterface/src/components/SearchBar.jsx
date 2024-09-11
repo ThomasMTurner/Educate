@@ -2,17 +2,25 @@ import {AiOutlineSearch} from 'react-icons/ai';
 import {useState, useEffect} from 'react';
 import styles from '../styles/component-styles/SearchBar.module.css';
 
-const SearchBar = ({setSearchQuery, setSearch, searchBarOffset}) => {
+const SearchBar = ({searchQuery, setSearchQuery, setSearch, searchBarOffset, completion}) => {
     const [searchIconColour, setSearchIconColour] = useState('grey');
-    const [searchQueryTemp, setSearchQueryTemp] = useState('');
-    
+
+    const getQueryUpdatedWithCompletion = () => {
+        let newQuery = searchQuery.split(" ");
+        newQuery[newQuery.length - 1] = completion;
+        return newQuery.join(" ")
+    }
+
     useEffect(() => {
-        setSearchQuery(searchQueryTemp);
-    }, [searchQueryTemp]);
+        console.log("New completion should be:", getQueryUpdatedWithCompletion());
+    }, [completion])
 
     const handleKeyPress = (e) => {
         if (e.key === 'Enter') {
             setSearch(true);
+        }
+        if (e.key === 'Shift') {
+            setSearchQuery(getQueryUpdatedWithCompletion());
         }
     }
 
@@ -22,11 +30,12 @@ const SearchBar = ({setSearchQuery, setSearch, searchBarOffset}) => {
                 type="text"
                 onKeyDown={handleKeyPress}
                 className="search-input"
-                value={searchQueryTemp}
-                onChange={(e) => setSearchQueryTemp(e.target.value)}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
                     position: 'relative',
-                    padding: '1rem',
+                    display: 'inline-block',
+                    paddingRight: '4rem',
                     border: 'none',
                     width: '50rem',
                     fontFamily: 'helvetica',
