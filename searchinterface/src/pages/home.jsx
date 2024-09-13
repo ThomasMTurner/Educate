@@ -64,6 +64,7 @@ const Home = () => {
         console.log('Search query: ', searchQuery);
         let terms = searchQuery.split(" ");
         let auto_rel = relevanceTrie.search(terms[terms.length - 1])
+        console.log("Relevance trie autosuggestions: ", auto_rel)
         let auto = trie.search(terms[terms.length - 1])
         auto = [...auto_rel, ...auto]
         const suggestions = auto.slice(0, 10)

@@ -59,9 +59,6 @@ const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(config));
-    console.log("Config updated: ", config);
-    // Add terms from query to the relevanceTrie that are not already present.
-    // TO DO: extra redundancy check to not add already present term.
     let histories = config.user.history;
     for (const history of histories) {
         let terms = history.query.split(" ");
@@ -74,7 +71,6 @@ const AuthProvider = ({ children }) => {
   const loginAction = async (data) => {
   try {
     const response = await axios.post("http://localhost:9797/auth/login", data);
-    console.log('Obtained login response', response.data);
 
     if (response.data) {
       setUser(response.data.username);
