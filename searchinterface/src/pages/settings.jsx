@@ -1,36 +1,90 @@
 import { SelectConfig, BoxConfig, MultiSelectConfig, TickConfig } from '../components/Config';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { writeConfig } from '../config_utilities';
 import { useAuth } from '../AuthProvider';
 
-const getSearchMethodState = (config) => {
-    const searchMethodInverseMap = {
-        0: 'Document Clustering with Word2Vec',
-        1: 'Document Clustering with Doc2Vec',
-        2: 'Document Clustering with Sentence Transformers',
-        3: 'TF-IDF Search Ranking'
-    }
-    let setSearchMethodState = {"Document Clustering with Word2Vec": false, "Document Clustering with Doc2Vec": false, "Document Clustering with Sentence Transformers": false, "TF-IDF Search Ranking": false, "PageRank": false};
-    setSearchMethodState[searchMethodInverseMap[config['search_params']['search_method']]] = true;
-    return setSearchMethodState;
-}
 
-const getIndexTypeState = (config) => {
+const getIndexTypeAndSearchMethodState = (config, setIndexTypeState) => {
     const indexInverseMap = {
         0: 'Document-Term',
         1: 'Inverted',
         2: 'B-Tree'
     }
+
     let setIndexType = {'Document-Term': false, 'Inverted': false, 'B-Tree': false};
     setIndexType[indexInverseMap[config['search_params']['index_type']]] = true;
-    return setIndexType;
+    let searchMethodInverseMap;
+    let setSearchMethodState;
+
+    if (Object.keys(setIndexTypeState).length > 0) {
+    console.log("USING INDEX TYPE STATE");
+    if (setIndexTypeState['Document-Term'])  {
+        searchMethodInverseMap = {
+            0: 'Document Clustering with Word2Vec',
+            1: 'Document Clustering with Doc2Vec',
+            2: 'Document Clustering with Sentence Transformers',
+        }
+        setSearchMethodState = {"Document Clustering with Word2Vec": false, "Document Clustering with Doc2Vec": false, "Document Clustering with Sentence Transformers": false}
+        setSearchMethodState[searchMethodInverseMap[0] = true];
+    }
+
+    else if (setIndexTypeState['Inverted']) {
+        console.log('INDEX TYPE STATE WAS INVERTED')
+        searchMethodInverseMap = {
+            3: 'TF-IDF Search Ranking'
+        }
+        setSearchMethodState = {"TF-IDF Search Ranking": false};
+        setSearchMethodState[searchMethodInverseMap[3] = true];
+    }
+
+    else {
+        searchMethodInverseMap = {}
+        setSearchMethodState = {};
+    }
+    }
+
+    else {
+
+    if (setIndexType['Document-Term'])  {
+        searchMethodInverseMap = {
+            0: 'Document Clustering with Word2Vec',
+            1: 'Document Clustering with Doc2Vec',
+            2: 'Document Clustering with Sentence Transformers',
+        }
+        setSearchMethodState = {"Document Clustering with Word2Vec": false, "Document Clustering with Doc2Vec": false, "Document Clustering with Sentence Transformers": false}
+    }
+
+    else if (setIndexType['Inverted']) {
+        searchMethodInverseMap = {
+            3: 'TF-IDF Search Ranking'
+        }
+        setSearchMethodState = {"TF-IDF Search Ranking": false};
+    }
+
+    else {
+        searchMethodInverseMap = {}
+        setSearchMethodState = {};
+    }
+    
+    setSearchMethodState[searchMethodInverseMap[config['search_params']['search_method']]] = true;
+    }
+
+
+
+    return {
+        setIndexTypeState: setIndexType,
+        searchMethodState: setSearchMethodState
+    }
 }
 
 
 const settings = () => {
     const { config, setConfig } = useAuth();
-    const [searchMethod, setSearchMethod] = useState(getSearchMethodState(config));
-    const [indexType, setIndexType] = useState(getIndexTypeState(config));
+    const {setIndexTypeState, searchMethodState } = getIndexTypeAndSearchMethodState(config, {});
+    console.log("Index Type: ", setIndexTypeState);
+    console.log("Search Method State: ", searchMethodState);
+    const [searchMethod, setSearchMethod] = useState(searchMethodState);
+    const [indexType, setIndexType] = useState(setIndexTypeState);
     const [altSearchParams, setAltSearchParams] = useState({"Crawl depth": config.search_params.crawl_depth, 
         "Number of seed domains": config.search_params.number_of_seeds});
     const [browsers, setBrowsers] = useState(config.search_params.browsers); 
@@ -50,6 +104,13 @@ const settings = () => {
         'Document Clustering with Sentence Transformers': 2,
         'TF-IDF Search Ranking': 3
     }
+
+    useEffect(() => {
+        console.log("Changed index type HELLO HELLO THERE");
+        const { _, searchMethodState } = getIndexTypeAndSearchMethodState(config, indexType);
+        console.log("NEW SEARCH METHOD STATE:", searchMethodState);
+        setSearchMethod(searchMethodState);
+    }, [indexType])
 
     const collectSearchParameters = () => {
         console.log('Search method has initial value: ', searchMethod)

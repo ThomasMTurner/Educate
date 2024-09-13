@@ -1,4 +1,5 @@
 export const SelectConfig = (props) => {
+console.log("Select config state: ", props.state)
 return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <h1 style={{ fontSize: '1rem' }}>{props.title}</h1>

@@ -1,5 +1,5 @@
 import {AiOutlineSearch} from 'react-icons/ai';
-import {useState, useEffect} from 'react';
+import {useState} from 'react';
 import styles from '../styles/component-styles/SearchBar.module.css';
 
 const SearchBar = ({searchQuery, setSearchQuery, setSearch, searchBarOffset, completion}) => {
@@ -10,10 +10,6 @@ const SearchBar = ({searchQuery, setSearchQuery, setSearch, searchBarOffset, com
         newQuery[newQuery.length - 1] = completion;
         return newQuery.join(" ")
     }
-
-    useEffect(() => {
-        console.log("New completion should be:", getQueryUpdatedWithCompletion());
-    }, [completion])
 
     const handleKeyPress = (e) => {
         if (e.key === 'Enter') {

@@ -61,33 +61,17 @@ const Home = () => {
 
   useEffect(() => {
     if (config.autosuggest) {
-        console.log('Search query: ', searchQuery);
         let terms = searchQuery.split(" ");
         let auto_rel = relevanceTrie.search(terms[terms.length - 1])
-        console.log("Relevance trie autosuggestions: ", auto_rel)
         let auto = trie.search(terms[terms.length - 1])
         auto = [...auto_rel, ...auto]
         const suggestions = auto.slice(0, 10)
-        console.log('Completion suggestions: ', suggestions)
         if (!(auto === 'undefined') && auto.length > 0) {
-            let completion_obj = auto[0];
-            const completion = completion_obj.key;
-            setCompletion(completion);
+            setCompletion(auto[0].key);
             setSuggestions(suggestions);
-        }
-        else {
-            console.log('Not setting completion')
         }
     }
   }, [searchQuery])
-
-  useEffect(() => {
-        console.log('Updated suggestions: ', suggestions);
-    }, [suggestions])
-    
-  useEffect(() => {
-    console.log('Obtained completion & re-rendered: ', completion);
-  }, [completion])
     
   useEffect(() => {
         if (search && config) {
@@ -104,13 +88,10 @@ const Home = () => {
                 let updatedConfig;
 
                 if (config.query_correction) {
-                    console.log('Query before levenshtein correction: ', searchQuery)
-
                     let i = 0;
                     let pre = searchQuery.split(" ")
                     for (const term of pre) {
                         let match = closest(term, dataArray);
-                        console.log('Obtained closest match: ', match)
                         if (!(match === term)) {
                             pre[i] = match
                         }
@@ -148,7 +129,6 @@ const Home = () => {
 
                 try {
                     const response = await axios.post('http://localhost:9797/search/get-results', updatedConfig)
-                    console.log('Search results: ', response.data)
                     
                     const duration = window.performance.now() - start
                     var searchResults = []
