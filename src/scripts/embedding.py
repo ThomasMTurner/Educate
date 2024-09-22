@@ -8,6 +8,7 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 TERMS = sys.argv[1:]
+print("Obtained terms: ", TERMS)
 
 model = None
 loaded_saved_model = False
@@ -26,7 +27,6 @@ except Exception as e:
 
 embeddings = []
 errors = 0
-
 
 if model is None:
     print(json.dumps(0))

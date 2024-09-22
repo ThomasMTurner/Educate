@@ -75,7 +75,7 @@
         }
     }
 
-    pub fn get_search_results(query: String) -> Result<SearchResponse, String> {
+    pub fn get_search_results(query: String, script: &str) -> Result<SearchResponse, String> {
         let index_map = match read_index_file("./indices/dterm.json") {
             Ok(Indexer::TermIndex(map)) => map,
             Ok(Indexer::InvertedIndex(_)) => return Err(String::from('2')),
@@ -86,7 +86,7 @@
 
         println!("{:?} indexed results loaded", num_indexed);
 
-        let results: Vec<Document> = get_ranked_documents(query, Indexer::TermIndex(index_map))?;
+        let results: Vec<Document> = get_ranked_documents(query, Indexer::TermIndex(index_map), script)?;
         Ok(SearchResponse::Search(DocumentResult {results, indexed: num_indexed}))
     }
 

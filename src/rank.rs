@@ -1,10 +1,3 @@
-    // IMPLEMENTED:
-    // Complete ranking procedure using document clustering with K-means and Word2Vec embeddings.
-    
-    // TO DO:
-    // (1) TF-IDF rankings as alternative & possibly more efficient embedding procedure.
-    // (2) Implement PageRank as an alternative ranking procedure to document clustering. Provide user
-    // with option to select ranking procedure in configs.
 
     use std::collections::HashMap;
     use std::fmt;
@@ -20,7 +13,7 @@
     use serde::{Serialize, Deserialize};
     use ndarray::Array1;
     extern crate redis;
-    use redis::Commands;
+    // use redis::Commands;
     // use serde_json::json;
     // IMPLEMENTED:
     // EmbeddedDocument - intermediate placeholder for documents & their averaged embedding.
@@ -38,6 +31,12 @@
             write!(f, "{}: ({})", self.document, format!("{:?}", self.embedding))
         }
     }
+
+    impl EmbeddedDocument {
+        fn new(document: Document, embedding: Vec<f32>) -> Self {
+            EmbeddedDocument { document, embedding }
+        }
+    }
     
     #[derive(Debug, Clone)]
     pub struct Cluster {
@@ -51,24 +50,12 @@
         }
     }
 
-    // IMPLEMENTED: 
-    // Obtain vector of terms for both document-term index and inverted index.
-    // Term collecting not currently supported for the inverted index - that is - Word2Vec
-    // preferentially used for document-term and more suitable embedding (TF-IDF?) for the inverted index
-
     fn collect_terms (index: Indexer) -> Option<HashMap<Document, Vec<String>>> {
         match index {
             Indexer::TermIndex (map) => { Some(map) }
             Indexer::InvertedIndex (_map) => { None }
         }
     }
-
-    // IMPLEMENTED:
-    // Compute component-wise average vector, useful to obtain global representation of document.
-    // TO DO:
-    // (1) Optimise the following with a fold operation - clearly follows this pattern.
-    // (2) Error handling - ensure valid input (non-empty), and look for other possible errors to
-    // place in Result type output.
 
     fn get_average_vector (features: Vec<Vec<f32>>) -> Vec<f32> {
         let acc: Array1<f32> = features.iter().fold(Array1::zeros(300), |acc ,f| {
@@ -78,13 +65,12 @@
         return acc.to_vec().par_iter().map(|x| x / features.len() as f32).collect();
     }
 
-    // IMPLEMENTED:
-    // Make embeddings using Word2Vec Python script. Opted to use JSON serialisation /
-    // deserialisation pipeline for Python-Rust communication.
-
-    fn make_embeddings (terms: Vec<String>) -> Result<Vec<Vec<f32>>, String> {
+    
+    fn make_embeddings (terms: Vec<String>, script: &str) -> Result<Vec<Vec<f32>>, String> {
         let mut embedding_script = Command::new("python3");
-        embedding_script.arg("scripts/embedding.py");
+        embedding_script.arg(script);
+        println!("Obtained script to embed with: {:?}", embedding_script);
+        println!("Obtained terms to embed: {:?}", terms);
 
         for term in &terms {
             embedding_script.arg(term);
@@ -111,28 +97,43 @@
             Err(_) => return Err(String::from("4"))
         }
 
+        println!("Obtained embeddings: {:?}", value);
+
         match value {
-            Value::Array(embeddings) => Ok(embeddings.into_iter().map(|embedding| embedding.as_array().unwrap_or(&Vec::new()).into_iter()
-                .map(|num| num.as_f64().unwrap() as f32).collect()).collect()),
+            Value::Array(embeddings) => {
+                let embeds_with_f32: Vec<Vec<f32>> = embeddings
+                    .into_iter()
+                    .map(|embedding| {
+                        embedding.as_array()
+                        .unwrap_or(&Vec::new()) 
+                        .iter()
+                        .map(|num| num.as_f64().unwrap_or(0.0) as f32) 
+                        .collect() 
+                    })
+                .collect(); 
+                println!("Embeddings after second processing: {:?}", embeds_with_f32);
+                Ok(embeds_with_f32)
+            }
             Value::Number(error) if error.is_i64() => {
                 match error.as_i64().unwrap() {
                     1 => {
+                        println!("Embedding error: {}", error);
                         return Err(String::from("1"));
                     }
                     _ => {
+                        println!("Embedding error: {}", error);
                         return Err(String::from("-2"));
                     }
                 }
             } 
-            _ => Err(String::from("-2"))
+            _ => {
+                println!("Embedding error (out of match)");
+                Err(String::from("-2"))
+            }
         }
     }
 
-    // IMPLEMENTED: 
-    // Obtain feature vector for each document by pipelining text content into Word2Vec.
-    // WARNING: Temporarily public for testing.
-
-    pub fn embed_documents(document_terms: HashMap<Document, Vec<String>>, num_terms: u32) -> Result<Vec<EmbeddedDocument>, String> {
+    pub fn embed_documents(document_terms: HashMap<Document, Vec<String>>, num_terms: u32, script: &str) -> Result<Vec<EmbeddedDocument>, String> {
         let mut global_embeddings: Vec<EmbeddedDocument> = Vec::new();
 
         document_terms.iter().for_each(|(document, terms)| {
@@ -141,24 +142,26 @@
             }
             
             let local_embeddings: Vec<Vec<f32>>;
-            
-            // TO DO: make use of PCA here also for dimensionality reduction. Currently
-            // just clipping the values.
-            // Should be in the form: terms[0..num_terms as usize] -> reduce(terms, size)
-            match make_embeddings(terms[0..num_terms as usize].to_vec()) {
+            let result_vector: Vec<f32>;
+           
+            let mut title: Vec<String> = document.title.split_whitespace().map(String::from).collect();
+            let mut terms = terms[0..num_terms as usize].to_vec();
+            terms.append(&mut title);
+            println!("Embedding with following terms: {:?}", terms);
+            match make_embeddings(terms, script) {
                 Ok(embeddings) => local_embeddings = embeddings,
-                Err(_) => {
+                Err(e) => {
+                    println!("Embedding error: {}", e);
                     return
                 }
             }
 
-            let doc = EmbeddedDocument { 
-                document: document.clone(),
-                embedding: get_average_vector(local_embeddings)
-            };
-            
-            global_embeddings.push(doc);
-            
+            match script {
+                "scripts/embedding.py" => result_vector = get_average_vector(local_embeddings),
+                _ => result_vector = local_embeddings[0].clone() 
+            }
+
+            global_embeddings.push(EmbeddedDocument::new(document.clone(), result_vector));
         });
 
         if global_embeddings.is_empty() {
@@ -168,11 +171,6 @@
         Ok(global_embeddings)
     }
 
-
-    // IMPLEMENTED: 
-    // Clusters similar documents together using k-means. Need to store the clusters, mean centroid
-    // value and the distance for each document to their respective centroid. Need to specify a
-    // different type for this.
 
     pub fn generate_clusters (embeddings: Vec<EmbeddedDocument>) -> Result<Vec<Cluster>, String> {
         let samples = embeddings.par_iter()
@@ -230,13 +228,10 @@
         
         Ok(clusters)
     }
-
-    // IMPLEMENTED: 
-    // Minkowski distance metric - uses Pca model to reduce query vector where necessary to size of the centroid.
-    // TO DO:
-    // Error handling for invalid input and other possible errors wrapped in Result type output.
-
-    fn distance (a: Vec<f32>, b: Vec<f32>) -> f32 {
+    
+    // Minkowski distance used preferentially for 
+    // document clustering methods.
+    fn mink_distance (a: Vec<f32>, b: Vec<f32>) -> f32 {
         let p = a.len() as f32;
         a.par_iter()
             .zip(b.par_iter())
@@ -245,14 +240,19 @@
             .powf(1.0 / p)
     }
     
-    // IMPLEMENTED:
-    // Principal component analysis utility used to reduce the size of the query vector to match
-    // cluster embeddings size.
-    // TO DO:
-    // (1) Proper error handling
-    // (2) Modifying for more general use for reducing elsewhere (we have opted in other cases to
-    // simply cap off some of the higher dimensional data points - which will reduce the accuracy
-    // of the ranking).
+    // Cosine similarity which will be used 
+    // for TF-IDF weighting based ranking.
+    fn _cos_distance (a: Vec<f32>, b: Vec<f32>) -> f32 {
+        // Compute dot product
+        let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
+
+        // Compute magnitudes.
+        let mag1: f32 = a.iter().map(|x| (x * x).sqrt()).sum();
+        let mag2: f32 = b.iter().map(|x| (x * x).sqrt()).sum();
+
+        // Return distance.
+        return dot / (mag1 * mag2);
+    }
 
     fn reduce_query (query: Vec<f32>, embeddings: Vec<EmbeddedDocument>, centroid_len: usize) -> Vec<f32> {
         let embeddings: Vec<Vec<f32>> = embeddings.par_iter().map(|doc| doc.embedding.clone()).collect();
@@ -273,7 +273,7 @@
     }
         
     
-    pub fn get_ranked_documents (query: String, index: Indexer) -> Result<Vec<Document>, String> {
+    pub fn get_ranked_documents (query: String, index: Indexer, script: &str) -> Result<Vec<Document>, String> {
         let document_terms;
         
         match collect_terms (index) {
@@ -284,8 +284,18 @@
                 return Err(String::from("3"))
             }
         }
+        
+        // TO DO: limit term count for Word2Vec versus Sentence Transformers.
+        // Currently we are testing term limit for sentence transformers.
+        let num_terms;
+        match script {
+            "scripts/embedding.py" => num_terms = 5,
+            "scripts/sentence_transform.py" => num_terms = 50,
+            // TO DO: check if this is a correct error message.
+            _ => return Err(String::from("4"))
+        }
 
-        let embeddings = embed_documents(document_terms, 2)?;
+        let embeddings = embed_documents(document_terms, num_terms, script)?;
 
         let clusters: Vec<Cluster>;
 
@@ -296,9 +306,16 @@
 
         let parsed_query = query.to_string().replace("\"", "").trim().split_whitespace().map(str::to_string).collect();
         
-        let query_embeddings = make_embeddings(parsed_query)?;
+        let query_embeddings = make_embeddings(parsed_query, script)?;
+        
+        let mut query_embedding;
+        
+        match script {
+            "scripts/embedding.py" => query_embedding = get_average_vector(query_embeddings),
+            _ => query_embedding = query_embeddings[0].clone() 
+        }
 
-        let mut query_embedding = get_average_vector(query_embeddings);
+        //let mut query_embedding = get_average_vector(query_embeddings);
 
         let centroid_len = clusters[0].centroid.len();
         let query_len = query_embedding.len();
@@ -312,9 +329,10 @@
         } 
         
         // WARNING: error may occur here now we have removed unwrap() call.
+        // Could replace with cos_distance for testing.
         let min = clusters.iter().min_by_key(move |cluster| {
-            distance(query_embedding.clone(), cluster.centroid.clone())
-            .partial_cmp(&distance(query_embedding.clone(), cluster.centroid.clone()))
+            mink_distance(query_embedding.clone(), cluster.centroid.clone())
+            .partial_cmp(&mink_distance(query_embedding.clone(), cluster.centroid.clone()))
         });
         
         let mut ranked_docs: Vec<Document> = vec![];
