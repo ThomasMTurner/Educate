@@ -10,11 +10,10 @@
     use serde::{Serialize, Deserialize};
     use crate::meta::SearchResponse;
     
-    // Fill indices on application startup with crawl bot results (or use cached instead - later
-    // modification).
     pub async fn fill_indices (crawl_depth: u8, seed_count: u8) -> Option<HashMap<Document, Vec<String>>> {
         let new_index: bool;
-        let index_map: HashMap<Document, Vec<String>>;
+        //let index_map: HashMap<Document, Vec<String>>;
+        let index_map: HashMap<String, Vec<Document>>;
 
         match read_index_file("./indices/dterm.json") {
             Ok(Indexer::TermIndex(_)) => {
@@ -28,7 +27,6 @@
                 new_index = true
             }
         }
-
         
         if new_index {
             let seed_urls: Vec<String>;
@@ -44,27 +42,30 @@
             
             // Modify to handle error case explicitly.
             let results: Vec<CrawlResult> = get_crawled(seed_urls, crawl_depth.into()).await;
+            println!("Crawled {} results", results.len());
             let parsed_results = parse_crawl_results(results);
+            println!("Parsed {} results", parsed_results.len());
         
             // Creates raw indices - stores in file (if file isn't already filled) and stores indices raw for later use.
-            let _ = Indexer::TermIndex(HashMap::new()).new(parsed_results.clone());
+            //let _ = Indexer::TermIndex(HashMap::new()).new(parsed_results.clone());
+            let _ = Indexer::InvertedIndex(HashMap::new()).new(parsed_results.clone());
 
-            // Skip for now - for some reason much more computationally intensive than TermIndex.
-            // let _ = Indexer::InvertedIndex(HashMap::new()).new(parsed_results.clone());
-
-            println!("Completed creating indices...");
-
-            // Now read the indices again which have just been written to disk.
-            match read_index_file("./indices/dterm.json") {
-                Ok(Indexer::TermIndex(map)) => {
+            // TO DO:
+            // Use configurations to select index path to read.
+            // Currently we will test the inverted path manually.
+            // Standard path (for forward index) is './indices/dterm.json'
+            match read_index_file("./indices/inverted.json") {
+                Ok(Indexer::TermIndex(_)) => {
+                    //index_map = map;
+                    //Some(index_map)
+                    return None
+                }
+                Ok(Indexer::InvertedIndex(map)) => {
                     index_map = map;
                     Some(index_map)
                 }
-                Ok(Indexer::InvertedIndex(_)) => {
-                    return None
-                }
                 Err(e) => {
-                    eprintln!("Index not found - problem with creation: {}", e);
+                    eprintln!("Document term index not found - problem with creation: {}", e);
                     return None
                 }
             }
@@ -76,19 +77,21 @@
     }
 
     pub fn get_search_results(query: String, script: &str) -> Result<SearchResponse, String> {
-        let index_map = match read_index_file("./indices/dterm.json") {
-            Ok(Indexer::TermIndex(map)) => map,
-            Ok(Indexer::InvertedIndex(_)) => return Err(String::from('2')),
-            Err(_) => return Err(String::from('2'))
-        };
+        // TO DO:
+        // Choice of index should also be configurable.
+        // Manually testing inverted.
+        match read_index_file("./indices/inverted.json") {
+            Ok(Indexer::TermIndex(_)) => Err(String::from('2')),
+            Ok(Indexer::InvertedIndex(map)) => {
+                let num_indexed = map.len();
+                let results: Vec<Document> = get_ranked_documents(query, Indexer::InvertedIndex(map), script)?;
+                Ok(SearchResponse::Search(DocumentResult {results, indexed: num_indexed}))
 
-        let num_indexed = index_map.len();
-
-        println!("{:?} indexed results loaded", num_indexed);
-
-        let results: Vec<Document> = get_ranked_documents(query, Indexer::TermIndex(index_map), script)?;
-        Ok(SearchResponse::Search(DocumentResult {results, indexed: num_indexed}))
+            },
+            Err(_) => Err(String::from('2'))
+        }
     }
+
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DocumentResult {

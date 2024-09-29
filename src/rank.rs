@@ -271,11 +271,23 @@
 
         pca.predict(&query_embedding).iter().map(|&x| x as f32).collect()
     }
+
+    // TO DO:
+    // Implement TF-IDF ranking procedure.
+    // Currently it seems sufficient to use just three functions to 
+    // separate out redirection to document clustering & TF-IDF respectively.
+    // May want to use a trait interface if we plan on using PageRank in the future.
+    // This trait interface would be bound to a struct combining
+    // Indexer & configuration information.
+    // This will likely add some unnecessary complexity but would be nicer for 3+ methods.
         
     
     pub fn get_ranked_documents (query: String, index: Indexer, script: &str) -> Result<Vec<Document>, String> {
+        // TO DO:
+        // Need to redirect code depending on configurations.
+        // I.e. document-term with Word2Vec, document-term with Sentence Transformers,
+        // inverted with TF-IDF weightings.
         let document_terms;
-        
         match collect_terms (index) {
             Some (map) => {
                 document_terms = map;
@@ -284,6 +296,7 @@
                 return Err(String::from("3"))
             }
         }
+
         
         // TO DO: limit term count for Word2Vec versus Sentence Transformers.
         // Currently we are testing term limit for sentence transformers.

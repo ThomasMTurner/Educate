@@ -24,6 +24,7 @@ async fn fill(config: Json<Config>) {
     // NOTE: Currently B-tree, inverted and forward indices are filled by default.
     // May want to prevent through config information.
     let config: Config = config.into_inner();
+    println!("Config: {:?}", config);
     let crawl_depth: u8 = config.search_params.crawl_depth;
     let seed_count: u8 = config.search_params.number_of_seeds;
     fill_indices(crawl_depth, seed_count).await;

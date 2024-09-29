@@ -7,19 +7,14 @@ use crate::parser::Document;
 use rayon::prelude::*;
 
 
-
-
-
 //set the location to store indices at local subdirectory "indices"
 const INDEX_DIR: &str = "./indices";
 const DTERM_PATH: &str = "./indices/dterm.json";
 const INVERTED_PATH: &str = "./indices/inverted.json";
 
-
      
 // Pre-processing step before passing text content to indices.
 fn tokenise (content: String) -> Vec<String> {
-
     //remove all non alphabetic characters - text encoded as a stream of UTF encoded bytes (UTF-8)
     //gets all of these chars, applies filter (keeping alphabetic characters), and then collects this stream back into a String
     let content: String = content.chars().filter(|c| c.is_alphabetic() || c.is_whitespace()).collect();
@@ -87,18 +82,14 @@ pub fn _delete_all() -> std::io::Result<()> {
     Ok(())
     
 }
-  
-    
 // Create enum to store all index types as variants, currently includes document-term and
 // term-document indices. Later will want to include B-tree.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Indexer {
     TermIndex(HashMap<Document, Vec<String>>),
     InvertedIndex(HashMap<String, Vec<Document>>),
-    
 }
 
-// Implementation of standard Hash Map functions for each index type.
 impl Indexer {
     pub fn new(&mut self, documents: Vec<Document>) -> &mut Self {
         match self {
@@ -112,19 +103,19 @@ impl Indexer {
                 let _ = create_index_file(DTERM_PATH, &self);
                 self
             }
+
             Indexer::InvertedIndex(_) => {
                 for document in documents {
                     let pre_terms: Vec<Vec<String>> = document.content.par_iter().map(|content| tokenise(String::from(content))).collect();
-                    let terms = pre_terms.into_iter().flatten().collect();
-                    self.insert(document.clone(), terms);
+                    let terms: Vec<String> = pre_terms.into_iter().flatten().collect();
+                    self.insert(document.clone(), terms); 
                 }
-                    
+                
                 let _ = create_index_file(INVERTED_PATH, &self);
                 self
             }
         }
     }
-    
 
     fn insert(&mut self, document: Document, terms: Vec<String>){
         match self {
@@ -135,12 +126,7 @@ impl Indexer {
             // Term-document requires the reverse mapping, handled by below logic.
              Indexer::InvertedIndex(map) => { 
                 for term in terms {
-                    if let Some(documents) = map.get_mut(&term) { 
-                        documents.push(document.clone());
-                    } 
-                    else {
-                        map.insert(term, vec![document.clone()]);
-                    }
+                    let _ = map.entry(term).or_insert_with(Vec::new).push(document.clone());
                 }
             }
         }
