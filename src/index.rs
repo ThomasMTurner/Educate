@@ -7,19 +7,14 @@ use crate::parser::Document;
 use rayon::prelude::*;
 
 
-
-
-
 //set the location to store indices at local subdirectory "indices"
 const INDEX_DIR: &str = "./indices";
 const DTERM_PATH: &str = "./indices/dterm.json";
 const INVERTED_PATH: &str = "./indices/inverted.json";
 
-
      
 // Pre-processing step before passing text content to indices.
 fn tokenise (content: String) -> Vec<String> {
-
     //remove all non alphabetic characters - text encoded as a stream of UTF encoded bytes (UTF-8)
     //gets all of these chars, applies filter (keeping alphabetic characters), and then collects this stream back into a String
     let content: String = content.chars().filter(|c| c.is_alphabetic() || c.is_whitespace()).collect();
@@ -87,24 +82,36 @@ pub fn _delete_all() -> std::io::Result<()> {
     Ok(())
     
 }
-  
-    
 // Create enum to store all index types as variants, currently includes document-term and
 // term-document indices. Later will want to include B-tree.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Indexer {
     TermIndex(HashMap<Document, Vec<String>>),
-    InvertedIndex(HashMap<String, Vec<Document>>),
-    
+    InvertedIndex(HashMap<String, Vec<InvertedInfo>>),
 }
 
-// Implementation of standard Hash Map functions for each index type.
+// This will be later modified to 
+// include document as it's identifier as opposed
+// to the whole type serialised.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InvertedInfo {
+    pub document: Document,
+    pub term_freq: usize
+}
+
+impl InvertedInfo {
+    pub fn new(document: Document, term_freq: usize) -> Self {
+        InvertedInfo { document, term_freq }
+    }
+}
+
 impl Indexer {
     pub fn new(&mut self, documents: Vec<Document>) -> &mut Self {
         match self {
             Indexer::TermIndex(_) => {
                 for document in documents {
-                    let pre_terms: Vec<Vec<String>> = document.content.par_iter().map(|content| tokenise(String::from(content))).collect();
+                    let pre_terms: Vec<Vec<String>> = document.content.par_iter()
+                        .map(|content| tokenise(String::from(content))).collect();
                     let terms = pre_terms.into_iter().flatten().collect();
                     self.insert(document.clone(), terms);
                 }
@@ -112,19 +119,28 @@ impl Indexer {
                 let _ = create_index_file(DTERM_PATH, &self);
                 self
             }
+            
             Indexer::InvertedIndex(_) => {
+                // (1) Iterate through each document.
+                // (2) If term not in the map yet, add to map with document and
+                // default term frequency of 1.
+                // (3) If term already in map but document is not, add to map with
+                // new document and default term frequency of 1.
+                // (4) If term already in map and document is, increment term
+                // frequency for given document.
                 for document in documents {
-                    let pre_terms: Vec<Vec<String>> = document.content.par_iter().map(|content| tokenise(String::from(content))).collect();
+                    let pre_terms: Vec<Vec<String>> = document.content.par_iter()
+                        .map(|content| tokenise(String::from(content))).collect();
                     let terms = pre_terms.into_iter().flatten().collect();
                     self.insert(document.clone(), terms);
                 }
-                    
+            
+                
                 let _ = create_index_file(INVERTED_PATH, &self);
                 self
             }
         }
     }
-    
 
     fn insert(&mut self, document: Document, terms: Vec<String>){
         match self {
@@ -133,13 +149,15 @@ impl Indexer {
                 let _ = map.insert(document, terms);
             },
             // Term-document requires the reverse mapping, handled by below logic.
-             Indexer::InvertedIndex(map) => { 
+            Indexer::InvertedIndex(map) => {
                 for term in terms {
-                    if let Some(documents) = map.get_mut(&term) { 
-                        documents.push(document.clone());
-                    } 
-                    else {
-                        map.insert(term, vec![document.clone()]);
+                    let info_vec = map.entry(term.clone()).or_insert_with(Vec::new);
+                
+                    // Find if the document already exists in the vector.
+                    if let Some(container) = info_vec.iter_mut().find(|container| container.document == document) {
+                        container.term_freq += 1; // Increment existing frequency.
+                    } else {
+                        info_vec.push(InvertedInfo::new(document.clone(), 1)); // Add new entry.
                     }
                 }
             }

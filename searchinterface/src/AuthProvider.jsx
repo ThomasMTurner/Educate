@@ -59,6 +59,7 @@ const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(config));
+    console.log(config)
     let histories = config.user.history;
     for (const history of histories) {
         let terms = history.query.split(" ");

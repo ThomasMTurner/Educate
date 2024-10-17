@@ -18,15 +18,21 @@ fn options() -> &'static str {
     "OK"
 }
 
+// NOTE:
+// Currently we fill all index types by default to prevent
+// another expensive call to this endpoint
 #[post("/fill", data = "<config>")]
 async fn fill(config: Json<Config>) {
-    // Set values by config.
-    // NOTE: Currently B-tree, inverted and forward indices are filled by default.
-    // May want to prevent through config information.
     let config: Config = config.into_inner();
     let crawl_depth: u8 = config.search_params.crawl_depth;
     let seed_count: u8 = config.search_params.number_of_seeds;
-    fill_indices(crawl_depth, seed_count).await;
+    match fill_indices(crawl_depth, seed_count).await {
+        Ok(_) => return,
+        Err(e) => {
+            eprintln!("Error filling indices: {:?}", e);
+            return
+        }
+    }
 }
 
 
@@ -46,6 +52,8 @@ impl<'r> Responder<'r, 'static> for SearchResult {
 #[post("/get-results", data = "<config>")]
 pub async fn get_results(config: Json<Config>) -> SearchResult {
     let config: Config = config.into_inner();
+    println!("Obtained config: {:?}", config);
+
     let search_params = config.search_params;
     let q = search_params.q;
     let browsers = search_params.browsers;
@@ -67,11 +75,11 @@ pub async fn get_results(config: Json<Config>) -> SearchResult {
 
     println!("Obtained meta search responses: {:?}", responses);
 
-    // TO DO: may need to modify script path.
     // TO DO: get_search_results needs to be passed config information to 
-    // point to particular ranking implementation, i.e. Document Clustering with Sentence
-    // Transformers should provide the following script path.
-    match get_search_results(q, "scripts/sentence_transform.py") {
+    // point to particular ranking implementation.
+    // In this case if we know that our ranking implementation is
+    // TF-IDF w/ Inverted - then pass empty script to below.
+    match get_search_results(q, "") {
         Ok(results) => {
             responses.push(results);
             println!("Obtained {:?} search results", responses.len());
