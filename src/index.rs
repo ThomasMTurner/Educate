@@ -87,7 +87,22 @@ pub fn _delete_all() -> std::io::Result<()> {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Indexer {
     TermIndex(HashMap<Document, Vec<String>>),
-    InvertedIndex(HashMap<String, Vec<Document>>),
+    InvertedIndex(HashMap<String, Vec<InvertedInfo>>),
+}
+
+// This will be later modified to 
+// include document as it's identifier as opposed
+// to the whole type serialised.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InvertedInfo {
+    pub document: Document,
+    pub term_freq: usize
+}
+
+impl InvertedInfo {
+    pub fn new(document: Document, term_freq: usize) -> Self {
+        InvertedInfo { document, term_freq }
+    }
 }
 
 impl Indexer {
@@ -95,7 +110,8 @@ impl Indexer {
         match self {
             Indexer::TermIndex(_) => {
                 for document in documents {
-                    let pre_terms: Vec<Vec<String>> = document.content.par_iter().map(|content| tokenise(String::from(content))).collect();
+                    let pre_terms: Vec<Vec<String>> = document.content.par_iter()
+                        .map(|content| tokenise(String::from(content))).collect();
                     let terms = pre_terms.into_iter().flatten().collect();
                     self.insert(document.clone(), terms);
                 }
@@ -103,13 +119,22 @@ impl Indexer {
                 let _ = create_index_file(DTERM_PATH, &self);
                 self
             }
-
+            
             Indexer::InvertedIndex(_) => {
+                // (1) Iterate through each document.
+                // (2) If term not in the map yet, add to map with document and
+                // default term frequency of 1.
+                // (3) If term already in map but document is not, add to map with
+                // new document and default term frequency of 1.
+                // (4) If term already in map and document is, increment term
+                // frequency for given document.
                 for document in documents {
-                    let pre_terms: Vec<Vec<String>> = document.content.par_iter().map(|content| tokenise(String::from(content))).collect();
-                    let terms: Vec<String> = pre_terms.into_iter().flatten().collect();
-                    self.insert(document.clone(), terms); 
+                    let pre_terms: Vec<Vec<String>> = document.content.par_iter()
+                        .map(|content| tokenise(String::from(content))).collect();
+                    let terms = pre_terms.into_iter().flatten().collect();
+                    self.insert(document.clone(), terms);
                 }
+            
                 
                 let _ = create_index_file(INVERTED_PATH, &self);
                 self
@@ -124,9 +149,16 @@ impl Indexer {
                 let _ = map.insert(document, terms);
             },
             // Term-document requires the reverse mapping, handled by below logic.
-             Indexer::InvertedIndex(map) => { 
+            Indexer::InvertedIndex(map) => {
                 for term in terms {
-                    let _ = map.entry(term).or_insert_with(Vec::new).push(document.clone());
+                    let info_vec = map.entry(term.clone()).or_insert_with(Vec::new);
+                
+                    // Find if the document already exists in the vector.
+                    if let Some(container) = info_vec.iter_mut().find(|container| container.document == document) {
+                        container.term_freq += 1; // Increment existing frequency.
+                    } else {
+                        info_vec.push(InvertedInfo::new(document.clone(), 1)); // Add new entry.
+                    }
                 }
             }
         }

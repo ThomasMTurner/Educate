@@ -7,7 +7,7 @@
     use linfa::Dataset;
     use linfa::traits::{Fit, Predict};
     use crate::parser::Document;
-    use crate::index::Indexer;
+    use crate::index::{Indexer, InvertedInfo, read_index_file};
     use std::process::Command;
     use serde_json::Value;
     use serde::{Serialize, Deserialize};
@@ -64,7 +64,7 @@
 
         return acc.to_vec().par_iter().map(|x| x / features.len() as f32).collect();
     }
-
+    
     
     fn make_embeddings (terms: Vec<String>, script: &str) -> Result<Vec<Vec<f32>>, String> {
         let mut embedding_script = Command::new("python3");
@@ -111,7 +111,6 @@
                         .collect() 
                     })
                 .collect(); 
-                println!("Embeddings after second processing: {:?}", embeds_with_f32);
                 Ok(embeds_with_f32)
             }
             Value::Number(error) if error.is_i64() => {
@@ -271,22 +270,11 @@
 
         pca.predict(&query_embedding).iter().map(|&x| x as f32).collect()
     }
-
-    // TO DO:
-    // Implement TF-IDF ranking procedure.
-    // Currently it seems sufficient to use just three functions to 
-    // separate out redirection to document clustering & TF-IDF respectively.
-    // May want to use a trait interface if we plan on using PageRank in the future.
-    // This trait interface would be bound to a struct combining
-    // Indexer & configuration information.
-    // This will likely add some unnecessary complexity but would be nicer for 3+ methods.
-        
     
-    pub fn get_ranked_documents (query: String, index: Indexer, script: &str) -> Result<Vec<Document>, String> {
-        // TO DO:
-        // Need to redirect code depending on configurations.
-        // I.e. document-term with Word2Vec, document-term with Sentence Transformers,
-        // inverted with TF-IDF weightings.
+    // TO DO:
+    // Prevent use of PCA where cosine similarity is used.
+    // ENSURE cosine similarity is not implemented as cosine distance for the above.
+    pub fn get_clustered_rankings (query: String, index: Indexer, script: &str) -> Result<Vec<Document>, String> { 
         let document_terms;
         match collect_terms (index) {
             Some (map) => {
@@ -296,7 +284,6 @@
                 return Err(String::from("3"))
             }
         }
-
         
         // TO DO: limit term count for Word2Vec versus Sentence Transformers.
         // Currently we are testing term limit for sentence transformers.
@@ -355,6 +342,129 @@
         }
 
         Ok(ranked_docs)
+    }
+     
+
+    struct BM25 {
+        k1: f64,
+        b: f64,
+        avg_doc_len: f64,
+        doc_terms: HashMap<Document, Vec<String>>,
+        inverted: HashMap<String, Vec<InvertedInfo>>,
+        doc_count: usize
+    }
+
+    impl BM25 {
+        fn new(k1: f64, b: f64, document_terms: HashMap<Document, Vec<String>>, inverted: HashMap<String, Vec<InvertedInfo>>) -> Self {
+            // We can compute doc_count using the document_terms map.
+            // We can compute doc lengths on demand with document_terms map.
+            // We can compute average document length using document_terms map.
+            let mut total: f64 = 0.0;
+            let doc_count = document_terms.len();
+
+            // Compute avg_doc_len.
+            for (_, terms) in &document_terms {
+                // Compute doc length.
+                let doc_len = terms.len() as f64;
+                total += doc_len;
+            }
+            
+            let avg_doc_len = total / doc_count as f64;
+            BM25 { k1, b, avg_doc_len, doc_terms: document_terms, inverted, doc_count }
+        }
+        
+      
+        // Implement idf ranking used within bm25 score.
+        fn idf(&self, term: String) -> f64 {
+            // Empty created for longer lifetime.
+            let empty: Vec<InvertedInfo> = vec![];
+            let docs_containing_term = self.inverted.get(&term).unwrap_or(&empty);
+            let num_docs_containing_term = docs_containing_term.len();
+
+            let idf = if num_docs_containing_term > 0 {
+                ((self.doc_count - num_docs_containing_term) as f64 / (num_docs_containing_term as f64) + 0.5).log(10.0)
+            } else {
+                0.0 // or some other value to handle the case when no documents contain the term
+            };
+            
+            return idf
+        }
+        
+        // Implement bm25 score for individual document & query.
+        fn score(&self, query: &str, document: Document) -> f64 {
+            let mut bm25_score = 0.0;
+            // Assuming query form is delimited by 
+            for term in query.split_whitespace() {
+                let term = term.trim();
+                let idf = self.idf(term.to_string());
+                let mut tf = 0.0;
+                if let Some(containers) = self.inverted.get(term) {
+                    if let Some(container) = containers.iter().find(|container| container.document == document) {
+                        tf = container.term_freq as f64;
+                    }
+                }
+
+                // Taking document length as term count.
+                let doc_length = self.doc_terms.get(&document).unwrap().len() as f64;
+                let rhs = idf * (tf * (self.k1 + 1.0)) / (tf + self.k1 * (1.0 - self.b + self.b * (doc_length / self.avg_doc_len)));
+                bm25_score += rhs;
+            }
+            bm25_score
+        }
+        
+        // Apply score() and sort entries by the score.
+        pub fn rank_documents(&self, query: String) -> Result<Vec<Document>, String> {
+            // Obtain all documents (within the document term index).
+            let mut documents: Vec<Document> = self.doc_terms.keys().cloned().collect();
+
+            // Sort documents by bm25 scoring.
+            documents.sort_by(|a, b| {
+                let score_a = self.score(&query, a.clone());
+                let score_b = self.score(&query, b.clone());
+                score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
+            });
+
+            Ok(documents)
+        }
+    }
+
+
+    pub fn get_bm25_rankings (query: String) -> Result<Vec<Document>, String> {
+        let document_terms;
+        let inverted;
+
+        // Need to read out both indices.
+        match read_index_file("./indices/dterm.json") {
+            Ok(Indexer::TermIndex(map)) => document_terms = map,
+            Ok(Indexer::InvertedIndex(_)) => return Err(String::from("2")),
+            Err(_) => return Err(String::from("2"))
+        }
+
+        match read_index_file("./indices/inverted.json") {
+            Ok(Indexer::InvertedIndex(map)) => inverted = map,
+            Ok(Indexer::TermIndex(_)) => return Err(String::from("2")),
+            Err(_) => return Err(String::from("2"))
+        }
+
+        let bm25 = BM25::new(1.5, 0.75, document_terms, inverted);
+
+        match BM25::rank_documents(&bm25, query) {
+            Ok(documents) => Ok(documents),
+            Err(e) => return Err(e)
+        }
+    }
+   
+    pub fn get_ranked_documents (query: String, index: Indexer, script: &str) -> Result<Vec<Document>, String> {
+        if script.is_empty() {
+            println!("Using bm25 ranking");
+            let bm = get_bm25_rankings(query);
+            println!("bm25 result: {:?}", bm);
+            return bm
+        }  
+
+        else {
+            return get_clustered_rankings(query, index, script);
+        }
     }
     
 
