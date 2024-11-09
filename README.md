@@ -19,7 +19,7 @@ I assume the user has the following installed. The project is not being external
 Recommended to use a multiplexed terminal or tabs in terminal emulators such as Kitty or Alacritty to run services in parallel given below.
 
 ### Search Services
-Run search services, this is by running 'cargo run main' within the 'src' directory from the root. Seed domains for local search are already linked via another repository publically available on GitHub. Explanations for how to setup necessities for meta search are given below.
+Run search services, this is by running `cargo run main` within the 'src' directory from the root. Seed domains for local search are already linked via another repository publically available on GitHub. Explanations for how to setup necessities for meta search are given below.
 
 ### Frontend
 Run development or production server for React front-end, this is by running `npm run dev` (for development server) in **searchinterface/src** from the root.
