@@ -49,4 +49,4 @@ Configurations include 'index type', 'search method', 'engines'. Index type can 
 I'm hoping to write a wrapper gateway at some point which deals with managing the lifecycle of the system and ensuring everything runs without as much user input.
 
 ## System In-Depth
-
+More detail about how the project works internally can be found in the following article: (). If you enjoy the article and the rest of the page, it would be much appreciated if you subscribe (it is completely free and I don't intend to change this into the near future). 
