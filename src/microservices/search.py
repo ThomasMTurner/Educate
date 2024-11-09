@@ -4,30 +4,36 @@ import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from dotenv import load_dotenv
+import os
 
 # Microservice for search (gathering sources outside DDG) & summary
 # (TinyGPT or other lightweight language model for reasonable local inference time).
 
 # NOTE: Store this within a defined environment variable so users can supply their own.
 # AIzaSyAj31A-XzkAWneP24wu4hPGYAhKLnDaUsk
-API_KEY = "AIzaSyAj31A-XzkAWneP24wu4hPGYAhKLnDaUsk"
-PROGRAMMABLE_ENGINE_KEY = "81d8d25282d0a4340"
+load_dotenv()
+
+API_KEY = os.getenv("API_KEY")
+PROGRAMMABLE_ENGINE_KEY = os.getenv("PROGRAMMABLE_ENGINE_KEY")
+MODEL = os.getenv("MODEL")
+
 SEARCH_URL = "https://www.googleapis.com/customsearch/v1"
-MODEL = "distilgpt2"
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 @app.route('/summarise', methods=['POST'])
 def summarise():
+    data = {}
+
     try:
         data = request.get_json()
         print("JSON conversion worked")
     except Exception as e:
         print("Could not decode JSON data: ", e)
     
-    print("Obtained data: ", data)
-
+    
     if not data or not isinstance(data, dict):
         return jsonify({'error': 'Invalid JSON data: expected a dictionary'}), 400
 
@@ -47,8 +53,6 @@ def summarise():
     texts_to_process = list(data.values())  # Get the list of document texts
 
 
-    print("TOKENISING")
-
     # Tokenize the batch of texts
     inputs = tokenizer(texts_to_process, padding=True, truncation=True, return_tensors="pt", max_length=512)
     
@@ -67,7 +71,6 @@ def summarise():
             top_k=50,  # Consider top k tokens for diversity
         )
     
-    print("NOW OBTAINING SUMMARIES")
     summaries = {}
 
     # Decode the generated summaries and map them to the corresponding document IDs

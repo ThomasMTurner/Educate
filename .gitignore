@@ -3,4 +3,5 @@ src/caches/
 src/scripts/models
 searchinterface/node_modules
 src/indices/
+.env
 
