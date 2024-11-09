@@ -54,8 +54,14 @@ pub async fn get_results(config: Json<Config>) -> SearchResult {
     let search_params = config.search_params;
     let q = search_params.q;
     let browsers = search_params.browsers;
+    let method = search_params.search_method;
+    let index_type = search_params.index_type;
+    
+    println!("Using the following browsers: {:?}", browsers);
+    println!("Using the following method: {}", method);
+    println!("Using the following index type: {}", index_type);
 
-    let requests: Vec<MetaSearchRequest> = browsers.into_iter()
+    let requests: Vec<MetaSearchRequest> = browsers.clone().into_iter()
     .filter_map(|(k, v)| if v { Some(MetaSearchRequest::new(k, q.clone())) } else { None })
     .collect();
 
@@ -65,33 +71,39 @@ pub async fn get_results(config: Json<Config>) -> SearchResult {
         Ok(res) => responses.extend(res),
         Err(e) => return SearchResult::Error(Json(e.to_string()))
     }
-
-    // TO DO: Currently the following panics if we cannot obtain information
-    // from our Google meta search Flask microservice. This is a problem, evidently.
-    // I'm too lazy to fix this currently.
+    
+    // TO DO:
+    // If we finalise this service by extending with Bing search support,
+    // we must also modify the URL to include engines as a parameter with
+    // a formatted string OR use a POST request and supply as arguments.
     let url = format!("http://127.0.0.1:5000/search?query={}", q);
+    let mut results = vec![];
+    
+    if let Some(&value) = browsers.get("Google") {
 
+        if !value {
+            let response = reqwest::get(&url).await.map_err(|e| {
+                eprintln!("Error making request: {}", e);
+            });
 
-    let response = reqwest::get(&url).await.map_err(|e| {
-        eprintln!("Error making request: {}", e);
-    });
-
-    let results = match response {
-        Ok(resp) => {
-            match resp.json::<Vec<MetaSearchResult>>().await {
-                Ok(data) => data,
-                Err(e) => {
-                    eprintln!("Error parsing JSON: {}", e); // Log the JSON parsing error
-                    Vec::new() // Return an empty vector on JSON error
+            results = match response {
+                Ok(resp) => {
+                    match resp.json::<Vec<MetaSearchResult>>().await {
+                        Ok(data) => data,
+                        Err(e) => {
+                            eprintln!("Error parsing JSON: {}", e); // Log the JSON parsing error
+                            Vec::new() // Return an empty vector on JSON error
+                        }
+                    }
                 }
-            }
+                Err(_) => {
+                    // Handle case when the HTTP request itself failed
+                    eprintln!("Failed to fetch data from the API");
+                    Vec::new() // Return an empty vector on request failure
+                }
+            };
         }
-        Err(_) => {
-            // Handle case when the HTTP request itself failed
-            eprintln!("Failed to fetch data from the API");
-            Vec::new() // Return an empty vector on request failure
-        }
-    };
+    }
 
     let search_responses: Vec<SearchResponse> = results.into_iter()
     .map(|r| SearchResponse::MetaSearch(r))
@@ -103,10 +115,25 @@ pub async fn get_results(config: Json<Config>) -> SearchResult {
     // point to particular ranking implementation.
     // In this case if we know that our ranking implementation is
     // TF-IDF w/ Inverted - then pass empty script to below.
-    match get_search_results(q, "") {
+   
+    // embedding.py & sentence_transform.py
+    // if index_type == 1 then pass empty string as script.
+    // if search method == 2 then pass sentence_transform.py as script.
+    // if search method == 1 then pass embedding.py as script.
+    let mut script = "";
+    if index_type == 1 {
+        script = "";
+    }
+    else if method == 1 {
+        script = "scripts/embedding.py"
+    }
+    else if method == 2 {
+        script = "scripts/sentence_transform.py"
+    }
+
+    match get_search_results(q, script) {
         Ok(results) => {
             responses.push(results);
-            println!("Obtained {:?} search results", responses.len());
             return SearchResult::Documents(Json(responses))
         },
         Err(e) => {

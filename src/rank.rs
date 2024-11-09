@@ -70,7 +70,8 @@
         let mut embedding_script = Command::new("python3");
         embedding_script.arg(script);
         println!("Obtained script to embed with: {:?}", embedding_script);
-        println!("Obtained terms to embed: {:?}", terms);
+
+        println!("Using terms: {:?}", terms);
 
         for term in &terms {
             embedding_script.arg(term);
@@ -80,21 +81,30 @@
 
         match embedding_script.output() {
             Ok(out) => output = out,
-            Err(_) => return Err(String::from("4"))
+            Err(e) => {
+                eprintln!("Embedding error: {:?}", e);
+                return Err(String::from("4"))
+            }
         }
 
         let json;
 
         match std::str::from_utf8(&output.stdout) {
             Ok(out) => json = out,
-            Err(_) => return Err(String::from("4"))
+            Err(e) => {
+                eprintln!("Embedding error {:?}: UTF-8 conversion error", e);
+                return Err(String::from("4"))
+            }
         }
 
         let value: Value;
 
         match serde_json::from_str(json) {
             Ok(val) => value = val,
-            Err(_) => return Err(String::from("4"))
+            Err(e) => {
+                eprintln!("Embedding error, JSON parsing error: {:?}", e);
+                return Err(String::from("4"))
+            }
         }
 
         println!("Obtained embeddings: {:?}", value);
@@ -146,7 +156,6 @@
             let mut title: Vec<String> = document.title.split_whitespace().map(String::from).collect();
             let mut terms = terms[0..num_terms as usize].to_vec();
             terms.append(&mut title);
-            println!("Embedding with following terms: {:?}", terms);
             match make_embeddings(terms, script) {
                 Ok(embeddings) => local_embeddings = embeddings,
                 Err(e) => {
@@ -294,6 +303,10 @@
             // TO DO: check if this is a correct error message.
             _ => return Err(String::from("4"))
         }
+        
+        println!("Script: {}", script);
+        println!("Terms: {}", num_terms);
+        println!("Making embeddings");
 
         let embeddings = embed_documents(document_terms, num_terms, script)?;
 
