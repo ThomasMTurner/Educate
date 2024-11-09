@@ -7,7 +7,7 @@ import styles from '../styles/component-styles/SearchResult.module.css'
 // Fix formatting when you have the time.
 
 
-const SearchResult = ({document, summary}) => {
+const SearchResult = ({document}) => {
     return (
         <div className={styles.SearchResultContainer}>
             <h1 style={{fontSize:'0.7rem', fontWeight: 'bold', color:'whitesmoke'}}> {document.type === 'meta' ? document.engine: 'Local'} </h1>
@@ -40,7 +40,6 @@ const SearchResult = ({document, summary}) => {
         )}
 
             </div>
-            <h1 style={{fontStyle: 'helvetica', fontWeight: '200', fontSize:'0.8rem', color:'whitesmoke'}}><b style={{fontSize:'1rem'}}>Summarised by Ollama:</b> {summary}</h1>
         </div>
     )
 }
