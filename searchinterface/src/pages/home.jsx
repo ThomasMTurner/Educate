@@ -13,6 +13,8 @@ import SearchResult from '../components/SearchResult';
 import Summary from '../components/Summary';
 import { closest } from 'fastest-levenshtein';
 import { AutoSuggestions } from '../components/AutoSuggestion';
+import googleTrends from 'google-trends-api';
+import NGramModel from 'ngram-model';
 
 //import TrieSearch from 'trie-search';
 //import SearchHistory from '../components/SearchHistory';
@@ -67,7 +69,48 @@ const Home = () => {
         let auto_rel = relevanceTrie.search(terms[terms.length - 1])
         let auto = trie.search(terms[terms.length - 1])
         auto = [...auto_rel, ...auto]
-        const suggestions = auto.slice(0, 4)
+        let suggestions = auto.slice(0, 4)
+        // For now include the full sentence completions
+        // here, and extend suggestions.
+        // Model training also included here which needs to be moved to Auth
+        // as part of an automated service.
+        async function getTrendingSearches() {
+            try {
+                // Geography have set default to US (doesn't really matter).
+                const result = await googleTrends.dailyTrends({geo: 'US'})
+                const data = JSON.parse(result);
+                return data.default.trendingSearchesDays[0].trendingSearches.map(item => item.title.query.toLowerCase());
+            } catch(error) {
+                console.error("Error obtaining: ", error)
+                return [];
+            }
+        }
+
+        async function trainModel() {
+            console.log("Called request to train n-gram model")
+            const trendingSearches = await getTrendingSearches();
+            console.log("Obtained trending searches: ", trendingSearches)
+            const model = new NGramModel(3);
+            trendingSearches.forEach(query => {
+                model.train(query);
+            });
+            return model;
+        }
+
+        async function generateFullTextCompletions(current_query, num_tokens = 3) {
+            const model = await trainModel();
+            console.log("Obtained model: ", model)
+            const completions = model.guess(current_query, num_tokens);
+            return completions.map(completion => current_query + " " + completion.join(' '))
+        }
+        
+        (async() => {
+            console.log("Want n-gram completions")
+            const completions = await generateFullTextCompletions(searchQuery)
+            console.log("Obtained n-gram completions: ", completions)
+            suggestions.push(...completions)
+        })();
+
         if (!(auto === 'undefined') && auto.length > 0) {
             setCompletion(auto[0].key);
             setSingleSuggestions(suggestions);
@@ -76,7 +119,7 @@ const Home = () => {
   }, [searchQuery])
 
   useEffect(() => {
-    let words = searchQuery.split(" ");
+    let words = searchQuery.split(" ")
     words[words.length - 1] = completion
     setSearchQuery(words.join(" "))
   }, [completion])
