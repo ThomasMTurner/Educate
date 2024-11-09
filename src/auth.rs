@@ -18,7 +18,7 @@ pub struct SearchHistoryResponse {
     username: String
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Credentials {
     pub username: String,
     pub password: String,

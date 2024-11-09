@@ -1,4 +1,3 @@
-extern crate redis;
 use redis::{Commands, RedisError, RedisResult};
 use crate::auth::Credentials;
 use serde::{Serialize, Deserialize};
@@ -12,19 +11,19 @@ indexType: 0 -> Document-Term, 1 -> Inverted, 2 -> B-Tree
 searchMethod: 0 -> Document Clustering, 1 -> PageRank
 */
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SearchParams {
     pub crawl_depth: u8,
     pub number_of_seeds: u8,
-    search_method: u8,
+    pub search_method: u8,
     pub browsers: HashMap<String, bool>,
-    index_type: u8,
+    pub index_type: u8,
     pub q: String,
     //location: String
 }
 
 
-#[derive(Serialize, Deserialize,  Debug)]
+#[derive(Serialize, Deserialize,  Debug, Clone)]
 pub struct Config {
     user: Credentials,
     redis_connection_str: String,
