@@ -39,6 +39,8 @@ Environment variables can be used to modify Google programmable search engine ke
 ### The Application
 Once all the above is complete, you can run the default IP address (i.e. using development server). This will bring up a search page (image below). 
 
+![Alt text](SearchHomePage.png)
+
 
 #### Home Page & Account Setup
 Enter into the main search input in the center of the screen. Autosuggestions (single-word and full-sentence) will appear below, select as needed. In the top right includes configurations, search history & profile (a sign-up or sign-in page). The text beneath the profile will displayed as 'Login or Register' when the user is not currently signed in. Search results will appear after typing in the input after some time (approx. 10 seconds although more accurate details are given per search method in configurations) in a list. Summaries are awaited on until completed by the 'TinyGPT' microservice.
