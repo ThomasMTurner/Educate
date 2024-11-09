@@ -7,7 +7,7 @@ The goal of this project is to built a search application which is primarily foc
 ## Requirements
 I assume the user has the following installed. The project is not being externally hosted so treat it as if it was your own project still in development:
 
-- Python >3.11 & listed dependencies (within root/src/scripts).
+- Python >3.11 & listed dependencies (within root/src/scripts & within root/src/microservices).
 - Rust & Rust Toolchain
 - Redis (https://redis.io/docs/latest/operate/oss_and_stack/install/install-redis/)
 - Node.js 
@@ -34,7 +34,17 @@ Run summarisation service, simply access 'src/microservices' from the root, call
 Autosuggestions are supported by the use of a Trie (more detail at the bottom of this section), which relies on an existing sentence database. I recommend running the following command to obtain a required sentence database: `wget https://raw.githubusercontent.com/dwyl/english-words/master/words_dictionary.json`.  
 
 ### Google Engine Setup & Environment Variables
-Environment variables can be used to modify Google programmable search engine key. This can be set up properly via: (). It is left open to the user to customise this, but it is recommended to select only 'edu' domains as allowable to fit the purpose of the application.
+For the main microservices (within root/src/microservices), the user must specify an environment variable containing the following:
+
+- API key for Google programmable search engine.
+- Programmable engine key for above.
+- Model to use for summarisation endpoint.
+
+Simple to create an environment variable using `touch .env` within the directory and supplying `KEY=VALUE` as separate rows. Information online is readily available for creating standard environment variables.
+
+Full detail on configuring a programmable search engine from Google is given in the following (https://programmablesearchengine.google.com/cse/all).
+
+The engine is fully customisable but it is recommended to select only 'edu' domains as allowable to fit the purpose of the application.
 
 ### DuckDuckGo CLI Setup
 As part of the meta search service, the engine parses outputs from the DDGR command line tool. This can be installed with most default package managers, i.e. for Debian/Ubuntu sytems `sudo apt-get install ddgr` or through pip `sudo pip3 install ddgr`.
