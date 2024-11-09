@@ -30,6 +30,9 @@ Run Redis cache server, simple to call `redis_server` in a separate terminal ins
 ### Summarisation Service
 Run summarisation service, simply access 'src/microservices' from the root, call `python/python3 search.py`. 
 
+### Autosuggestions
+Autosuggestions are supported by the use of a Trie (more detail at the bottom of this section), which relies on an existing sentence database. I recommend running the following command to obtain a required sentence database: `wget https://raw.githubusercontent.com/dwyl/english-words/master/words_dictionary.json`.  
+
 ### Google Engine Setup & Environment Variables
 Environment variables can be used to modify Google programmable search engine key. This can be set up properly via: ().
 
