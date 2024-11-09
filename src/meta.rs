@@ -19,7 +19,7 @@ pub enum SearchResult {
 }
 
 // TO DO: add engine field so this can be displayed in the UI.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MetaSearchResult {
     pub title: String,
     pub url: String,
@@ -50,17 +50,11 @@ impl MetaSearchRequest {
     async fn collect(&self) -> Result<Vec<SearchResponse>, ()> {
        match self.browser.as_str() {
             "DuckDuckGo" => {
-                println!("Collecting DuckDuckGo results");
                 match self.ddgr_collect().await {
                     Ok(response) => Ok(response),
                     Err(e) => panic!("Need to implement error handling here: {}", e)
                 }
             }
-            /*
-            "Google" => {
-                //
-            }
-            */
             _ => {
                 eprintln!("Unknown browser: {}", self.browser);
                 Err(())

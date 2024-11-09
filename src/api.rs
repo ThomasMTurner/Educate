@@ -6,11 +6,9 @@ use rocket::fairing::{Fairing, Info, Kind};
 use rocket::serde::json::Json;
 use rocket::{post, options, launch};
 use crate::services::{fill_indices, get_search_results};
-//use serde_json::{Value, json};
-//use crate::parser::Document;
 use crate::auth::{authenticate, Credentials, SearchHistoryResponse, make_registration, update_history};
 use crate::config::Config;
-use crate::meta::{aggregate, MetaSearchRequest, SearchResult, SearchResponse};
+use crate::meta::{aggregate, MetaSearchRequest, SearchResult, SearchResponse, MetaSearchResult};
 
 // Corrected OPTIONS handler
 #[options("/<_..>")]
@@ -52,20 +50,15 @@ impl<'r> Responder<'r, 'static> for SearchResult {
 #[post("/get-results", data = "<config>")]
 pub async fn get_results(config: Json<Config>) -> SearchResult {
     let config: Config = config.into_inner();
-    println!("Obtained config: {:?}", config);
 
     let search_params = config.search_params;
     let q = search_params.q;
     let browsers = search_params.browsers;
 
-    println!("Obtained search query: {:?}", q);
-    
     let requests: Vec<MetaSearchRequest> = browsers.into_iter()
     .filter_map(|(k, v)| if v { Some(MetaSearchRequest::new(k, q.clone())) } else { None })
     .collect();
 
-    println!("Obtained search requests: {:?}", requests);
-    
     let mut responses: Vec<SearchResponse> = Vec::new();
     
     match aggregate(requests).await {
@@ -73,7 +66,38 @@ pub async fn get_results(config: Json<Config>) -> SearchResult {
         Err(e) => return SearchResult::Error(Json(e.to_string()))
     }
 
-    println!("Obtained meta search responses: {:?}", responses);
+    // TO DO: Currently the following panics if we cannot obtain information
+    // from our Google meta search Flask microservice. This is a problem, evidently.
+    // I'm too lazy to fix this currently.
+    let url = format!("http://127.0.0.1:5000/search?query={}", q);
+
+
+    let response = reqwest::get(&url).await.map_err(|e| {
+        eprintln!("Error making request: {}", e);
+    });
+
+    let results = match response {
+        Ok(resp) => {
+            match resp.json::<Vec<MetaSearchResult>>().await {
+                Ok(data) => data,
+                Err(e) => {
+                    eprintln!("Error parsing JSON: {}", e); // Log the JSON parsing error
+                    Vec::new() // Return an empty vector on JSON error
+                }
+            }
+        }
+        Err(_) => {
+            // Handle case when the HTTP request itself failed
+            eprintln!("Failed to fetch data from the API");
+            Vec::new() // Return an empty vector on request failure
+        }
+    };
+
+    let search_responses: Vec<SearchResponse> = results.into_iter()
+    .map(|r| SearchResponse::MetaSearch(r))
+    .collect();
+
+    responses.extend(search_responses);
 
     // TO DO: get_search_results needs to be passed config information to 
     // point to particular ranking implementation.

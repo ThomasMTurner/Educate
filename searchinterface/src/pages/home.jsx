@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 import ClipLoader from 'react-spinners/ClipLoader';
 import axios from 'axios';
 import SearchResult from '../components/SearchResult';
+import Summary from '../components/Summary';
 import { closest } from 'fastest-levenshtein';
 import { AutoSuggestions } from '../components/AutoSuggestion';
 
@@ -29,11 +30,12 @@ const Home = () => {
   const [iconColours, setIconColours] = useState({"Settings": "gray", "History": "gray", "Profile": "gray"})
   const [resultsScreen, setResultsScreen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [suggestions, setSuggestions] = useState([])
+  const [singleSuggestions, setSingleSuggestions] = useState([])
+  const [fullSuggestions, setFullSuggestions] = useState([])
   const [completion, setCompletion] = useState("")
   const [search, setSearch] = useState(false)
   const [searchResults, setSearchResults] = useState([])
-  // const [summaries, setSummaries] = useState({})
+  const [summaries, setSummaries] = useState({})
   const [loadingResults, setLoadingResults] = useState(false)
   const [searchBarOffset, setSearchBarOffset] = useState(12);
   //const [historyVisible, setHistoryVisible] = useState(false);
@@ -65,13 +67,19 @@ const Home = () => {
         let auto_rel = relevanceTrie.search(terms[terms.length - 1])
         let auto = trie.search(terms[terms.length - 1])
         auto = [...auto_rel, ...auto]
-        const suggestions = auto.slice(0, 10)
+        const suggestions = auto.slice(0, 4)
         if (!(auto === 'undefined') && auto.length > 0) {
             setCompletion(auto[0].key);
-            setSuggestions(suggestions);
+            setSingleSuggestions(suggestions);
         }
     }
   }, [searchQuery])
+
+  useEffect(() => {
+    let words = searchQuery.split(" ");
+    words[words.length - 1] = completion
+    setSearchQuery(words.join(" "))
+  }, [completion])
     
   useEffect(() => {
         if (search && config) {
@@ -135,10 +143,13 @@ const Home = () => {
                     var ranked = 0
                     var indexed = 0;
 
+                    let idCounter = 1;
+
                     for (const item of response.data) {
                         if ('MetaSearch' in item) {
                             let result = item.MetaSearch;
                             result.type = 'meta';
+                            result.id = idCounter++;
                             searchResults.push(item.MetaSearch);
                             
                         } else if ('Search' in item) {
@@ -178,29 +189,62 @@ const Home = () => {
                 } catch (error) {
                     console.error(error)
                 }
-            }
+                }
 
-                    // Call to summarise each search result
-                    /* 
-                    Promise.all(searchResults.map(async (result) => {
-                        try {
-                            const response = await axios.post('http://localhost:11434/api/generate', {
-                                model: 'llama2-uncensored', 
-                                prompt: "Summarise the following text: " + result.content, 
-                            });
-                            setSummaries(prev => ({...prev, [result.id]: response.data}))
-                            console.log(summaries)
-                        } catch (error) {
-                            console.error("There was an error: ", error);
-                        }
-                    }));
-                    */
+                    
                 }
             
                 handleSearch()
             }
 
     }, [search])
+
+    useEffect(() => {
+    const fetchSummaries = async () => {
+        try {
+            console.log("Search results: ", searchResults)
+           
+            // Initialize the current ID to 1 (or any starting number you prefer)
+            let currentId = 1;
+
+            // Might need to modify to generate some random integer ID
+            // that has not been used so far.
+            const prompts = searchResults.slice(0, searchResults.length - 1).reduce((acc, result) => {
+                // If result.id is undefined, use the currentId as default
+                const id = result.id !== undefined ? result.id : currentId++;
+                
+                // Use sliced content later (make sure to join on " " first).
+                // Add to the accumulator with the id as the key
+                acc[id] = result.description ? result.description : "";
+                
+                // Increment regardless
+                currentId++
+
+                return acc;
+            }, {});
+
+            console.log("Obtained prompts for summaries: ", prompts);
+            
+            let responses;
+            
+            try {
+                responses = await axios.post('http://127.0.0.1:5000/summarise', prompts); 
+                
+            } catch (error) {
+                console.error("Error during summary request: ", error.response ? error.response.data : error.message);
+            }
+            
+            console.log("TinyGPT responses: ", responses.data);
+            setSummaries(responses.data);
+
+
+        } catch (error) {
+            console.error("There was an error creating summaries: ", error);
+        }
+    };
+
+    fetchSummaries();
+    }, [searchResults]);
 
     return (
     (!resultsScreen) ? (
@@ -240,7 +284,7 @@ const Home = () => {
             </motion.div>
             <div style={{display: 'flex', flexDirection: 'column'}}>
                 <SearchBar searchQuery={searchQuery} searchBarOffset={searchBarOffset} setSearchQuery={setSearchQuery} setSearch={setSearch} completion={completion}/>
-                <AutoSuggestions setCompletion={setCompletion} suggestions={suggestions}/> 
+                <AutoSuggestions setCompletion={setCompletion} singleSuggestions={singleSuggestions}/> 
             </div>
         </div>
         ) : (
@@ -252,11 +296,25 @@ const Home = () => {
         > 
         <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} setSearch={setSearch} completion={completion}/>
             <div style={{display:'flex', position:'relative', alignItems:'left', justifyContent:'left', textAlign:'left', flexDirection:'column'}}>
-            {(!loadingResults) && <p style={{fontFamily:'helvetica', color:'darkslateblue', fontWeight:'bold'}}> [{performance["Ranked"]} search results were ranked from {performance["Indexed"]} indexed web documents in {performance["Time"]}]</p>}
+            {(!loadingResults) && <p style={{fontFamily:'helvetica', color:'darkslateblue', fontWeight:'bold'}}> [{performance["Ranked"]} search results were ranked in {performance["Time"]}]</p>}
             {!(loadingResults) ? (
                 searchResults.map((document, index) => (
-                    <div onClick={() => window.open(document.url, '_blank')} key={index}>
-                        <SearchResult document={document} />
+                    <div key={index} style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+                        <div onClick={() => window.open(document.url, '_blank')} key={index}>
+                            <SearchResult document={document} />
+                        </div>
+                        <div>
+                        {
+                            summaries[document.id] ? (
+                                <Summary summary={summaries[document.id]} key={document.id}/> 
+                            ) : (
+                                <div style={{display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'}}>
+                                    <p style={{fontWeight: 'bold', fontFamily: 'helvetica'}}> LOADING SUMMARY </p> 
+                                    <ClipLoader color="#800080" size={15} />
+                                </div>
+                            )
+                        }
+                        </div>
                     </div>
             ))
             ) : (
