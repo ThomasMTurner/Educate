@@ -7,7 +7,7 @@ The goal of this project is to built a search application which is primarily foc
 ## Requirements
 I assume the user has the following installed. The project is not being externally hosted so treat it as if it was your own project still in development:
 
-- Python >3.11
+- Python >3.11 & listed dependencies (within root/src/scripts).
 - Rust & Rust Toolchain
 - Redis (https://redis.io/docs/latest/operate/oss_and_stack/install/install-redis/)
 - Node.js 
@@ -19,7 +19,7 @@ I assume the user has the following installed. The project is not being external
 Recommended to use a multiplexed terminal or tabs in terminal emulators such as Kitty or Alacritty to run services in parallel given below.
 
 ### Search Services
-Run search services, this is by running 'cargo run main' within the 'src' directory from the root.
+Run search services, this is by running 'cargo run main' within the 'src' directory from the root. Seed domains for local search are already linked via another repository publically available on GitHub. Explanations for how to setup necessities for meta search are given below.
 
 ### Frontend
 Run development or production server for React front-end, this is by running `npm run dev` (for development server) in **searchinterface/src** from the root.
@@ -34,7 +34,10 @@ Run summarisation service, simply access 'src/microservices' from the root, call
 Autosuggestions are supported by the use of a Trie (more detail at the bottom of this section), which relies on an existing sentence database. I recommend running the following command to obtain a required sentence database: `wget https://raw.githubusercontent.com/dwyl/english-words/master/words_dictionary.json`.  
 
 ### Google Engine Setup & Environment Variables
-Environment variables can be used to modify Google programmable search engine key. This can be set up properly via: ().
+Environment variables can be used to modify Google programmable search engine key. This can be set up properly via: (). It is left open to the user to customise this, but it is recommended to select only 'edu' domains as allowable to fit the purpose of the application.
+
+### DuckDuckGo CLI Setup
+As part of the meta search service, the engine parses outputs from the DDGR command line tool. This can be installed with most default package managers, i.e. for Debian/Ubuntu sytems `sudo apt-get install ddgr` or through pip `sudo pip3 install ddgr`.
 
 ### The Application
 Once all the above is complete, you can run the default IP address (i.e. using development server). This will bring up a search page (image below). 
