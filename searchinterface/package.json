@@ -13,6 +13,8 @@
     "axios": "^1.6.7",
     "fastest-levenshtein": "^1.0.16",
     "framer-motion": "^11.0.8",
+    "google-trends-api": "^4.9.2",
+    "ngram-model": "^1.0.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-icons": "^5.0.1",
