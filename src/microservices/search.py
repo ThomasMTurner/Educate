@@ -10,8 +10,6 @@ import os
 # Microservice for search (gathering sources outside DDG) & summary
 # (TinyGPT or other lightweight language model for reasonable local inference time).
 
-# NOTE: Store this within a defined environment variable so users can supply their own.
-# AIzaSyAj31A-XzkAWneP24wu4hPGYAhKLnDaUsk
 load_dotenv()
 
 API_KEY = os.getenv("API_KEY")

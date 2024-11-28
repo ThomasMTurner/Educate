@@ -27,10 +27,7 @@ impl PartialOrd for UrlToVisit {
 // Full ordering with error handling layer above to catch errors in comparing tuples.
 impl Ord for UrlToVisit {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match self.partial_cmp(other) {
-            Some(ord) => ord,
-            None => std::cmp::Ordering::Equal,
-        }
+        self.crawl_depth.cmp(&other.crawl_depth).reverse()
     }
 }
 
