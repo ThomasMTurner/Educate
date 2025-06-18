@@ -2,7 +2,7 @@
 Custom search engine built for academic research, educational content & learning, built with Rust, Python and React.
 
 ## Goal
-The goal of this project is to built a search application which is primarily focused around educational resources. It is built around two primary features, a fully local search engine & a meta search engine. Results are aggregated from all of these sources, and final outputs are provided as links to these sources (browser re-direct) & summarisations (with a locally sourced LLM). 
+The goal of this project was to build a search application primarily focused around educational resources. It is built around two primary features, a fully local search engine and a meta search engine. Results are aggregated from all of these sources, and final outputs are provided as links to these sources (browser re-direct) and summarisations (with a locally sourced LLM). 
 
 ## Requirements
 I assume the user has the following installed. The project is not being externally hosted so treat it as if it was your own project still in development:
